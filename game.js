@@ -31,6 +31,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Enter' && (state === 'title' || state === 'win')) startGame();
   if (e.code === 'KeyR' && (state === 'gameover' || state === 'win')) startGame();
   if (e.code === 'KeyP' && state === 'play') paused = !paused;
+  if (e.code === 'KeyM') musicOn = !musicOn;
 });
 addEventListener('keyup', e => keys[e.code] = false);
 
@@ -57,6 +58,64 @@ const sfx = {
   win:   () => { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.16, 'square', 0.07, i * 0.13)); },
   fall:  () => tone(500, 0.5, 'square', 0.07, 0, 80),
 };
+
+// ---------- music (original 8-bit chiptune, 90s Karachi pop flavor) ----------
+let musicOn = true;
+let musicGain = null, iceGain = null;
+let mStep = 0, mNext = 0, jStep = 0, jNext = 0;
+const MSTEP = 60 / 116 / 2;            // 116 bpm, 8th notes
+const JSTEP_T = 60 / 92 / 2;           // jingle tempo
+// original melody — bouncy desi-pop feel in D minor (NOT the Babia melody)
+const LEAD = [
+  74, 76, 77, 79, 81, 0, 79, 77, 76, 0, 74, 76, 74, 0, 0, 0,
+  77, 79, 81, 84, 86, 0, 84, 81, 79, 0, 81, 79, 77, 0, 74, 0,
+];
+const BASS = [
+  50, 0, 50, 0, 50, 0, 57, 0, 58, 0, 58, 0, 53, 0, 53, 0,
+  53, 0, 53, 0, 53, 0, 48, 0, 48, 0, 48, 0, 55, 0, 55, 0,
+];
+// ice cream wala jingle — original music-box ditty
+const JINGLE = [84, 88, 91, 96, 91, 88, 84, 0, 86, 89, 93, 98, 96, 91, 84, 0];
+
+function midiHz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+function ensureMusicNodes() {
+  if (!AC || musicGain) return;
+  musicGain = AC.createGain(); musicGain.gain.value = 0.045; musicGain.connect(AC.destination);
+  iceGain = AC.createGain(); iceGain.gain.value = 0; iceGain.connect(AC.destination);
+}
+function noteAt(midi, t, dur, type, dest, vol) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = midiHz(midi);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.02);
+}
+setInterval(() => {
+  if (!AC) return;
+  ensureMusicNodes();
+  const now = AC.currentTime;
+  // background loop
+  if (mNext < now) mNext = now + 0.05;
+  while (mNext < now + 0.3) {
+    if (state === 'play' && musicOn && !paused) {
+      const L = LEAD[mStep % LEAD.length];
+      if (L) noteAt(L, mNext, MSTEP * 0.85, 'square', musicGain, 0.9);
+      const B = BASS[mStep % BASS.length];
+      if (B) noteAt(B, mNext, MSTEP * 0.95, 'triangle', musicGain, 1.5);
+    }
+    mStep++; mNext += MSTEP;
+  }
+  // ice cream jingle (always scheduled; volume controlled by proximity gain)
+  if (jNext < now) jNext = now + 0.05;
+  while (jNext < now + 0.3) {
+    const J = JINGLE[jStep % JINGLE.length];
+    if (J && state === 'play' && !paused) {
+      noteAt(J, jNext, JSTEP_T * 0.9, 'sine', iceGain, 1);
+      noteAt(J + 12, jNext, JSTEP_T * 0.45, 'sine', iceGain, 0.25);
+    }
+    jStep++; jNext += JSTEP_T;
+  }
+}, 100);
 
 // ---------- level data ----------
 const buildings = [];   // back layer facades with signboards
@@ -149,13 +208,15 @@ function buildLevel() {
   addBldg(6700, 160, 200, 'CLINIC LAB', '#dfe6e9', '#b2bec3', { signText: '#c0392b' });
   // Disco Bakery — the icon
   addBldg(6900, 280, 280, 'DISCO BAKERY', '#ffd32a', '#e8b50e', { sign: '#1e272e', signText: '#ffd32a', awning: '#1e272e' });
+  decors.push({ kind: 'signal', x: 7205 });
   decors.push({ kind: 'busstop', x: 7260 });
   platforms.push({ x: 7250, y: GROUND_Y - 100, w: 130, h: 10, shelter: true });
   addBldg(7440, 260, 340, 'RUFI APARTMENTS', '#a4b0be', '#747d8c', { floors: 7 });
   addBldg(7730, 170, 200, 'GULSHAN PHARMACY', '#7bed9f', '#2ed573', { signText: '#14502c', awning: '#3742fa' });
   decors.push({ kind: 'kepole', x: 7940, spark: true });
   wires.push({ x: 7910, y: GROUND_Y - 122, w: 70, h: 26 });
-  addBldg(7990, 200, 250, 'CHASE DEPT STORE', '#ff6b81', '#e05266', { awning: '#5352ed' });
+  addBldg(7960, 280, 310, 'IMTIAZ SQUARE', '#eef3f7', '#c3d1dc', { sign: '#d61f2c', signText: '#ffffff', floors: 4 });
+  decors.push({ kind: 'trolley', x: 8250 });
   solids.push({ x: 8260, y: GROUND_Y - 42, w: 120, h: 42, kind: 'mehran' });
   coinArc(8220, GROUND_Y - 60, 6);
   addBldg(8430, 180, 220, 'MILAN SWEETS', '#f1c40f', '#d4ac0d', { awning: '#c0392b' });
@@ -232,6 +293,7 @@ const VTYPES = {
   bus:      { w: 220, h: 64, sp: 2.1, score: 0 },
   bike:     { w: 64, h: 50, sp: 4.3, score: 0 },
   dumper:   { w: 170, h: 72, sp: 1.9, score: 0 },
+  icecream: { w: 104, h: 58, sp: 1.4, score: 0 },
 };
 function zoneAt(x) { let z = 0; for (let i = 0; i < ZONES.length; i++) if (x >= ZONES[i].x) z = i; return z; }
 const ZONE_SPAWN = [
@@ -247,7 +309,9 @@ const ZONE_RATE = [150, 95, 110, 100, 170, 130];
 function spawnVehicle() {
   const z = zoneAt(player.x);
   const pool = ZONE_SPAWN[z];
-  const kind = pool[Math.floor(Math.random() * pool.length)];
+  let kind = pool[Math.floor(Math.random() * pool.length)];
+  // ice cream wala cruises the commercial stretches now and then
+  if (z <= 3 && Math.random() < 0.14) kind = 'icecream';
   const t = VTYPES[kind];
   const x = cam.x + W + 80;
   if (x > LEN - 100) return;
@@ -370,6 +434,17 @@ function step() {
   if (iframes > 0) iframes--;
   if (boostT > 0) boostT--;
   if (starT > 0) starT--;
+
+  // ice cream wala jingle: louder as the cart gets closer, fades as it passes
+  if (AC && iceGain) {
+    let nearest = Infinity;
+    for (const v of vehicles) if (v.kind === 'icecream') {
+      const d = Math.abs((v.x + v.w / 2) - (player.x + player.w / 2));
+      if (d < nearest) nearest = d;
+    }
+    const target = (musicOn && nearest < 750) ? 0.14 * (1 - nearest / 750) : 0;
+    iceGain.gain.setTargetAtTime(target, AC.currentTime, 0.15);
+  }
 
   // load shedding cycle: 30s period — dark from 24s to 30s
   shedT = (shedT + 1) % 1800;
@@ -662,6 +737,23 @@ function drawVehicle(v) {
     ctx.fillStyle = '#5d4037'; ctx.fillRect(x + 22, y + 4, 14, 14);            // rider head
     ctx.fillStyle = '#34495e'; ctx.fillRect(x + 18, y + 16, 22, 16);           // rider body
     ctx.fillStyle = '#222'; circle(x + 12, y + v.h - 9, 10); circle(x + v.w - 12, y + v.h - 9, 10);
+  } else if (v.kind === 'icecream') {
+    ctx.fillStyle = '#fdfdfd'; ctx.fillRect(x, y + 18, v.w, v.h - 32);          // white cart body
+    ctx.fillStyle = '#ff7eb3';                                                   // pink striped canopy
+    for (let i = 0; i < v.w; i += 16) ctx.fillRect(x + i, y + 6, 9, 12);
+    ctx.fillStyle = '#e84393'; ctx.fillRect(x, y + 16, v.w, 4);
+    ctx.fillStyle = '#f6b93b';                                                   // painted cone
+    ctx.beginPath(); ctx.moveTo(x + 14, y + 40); ctx.lineTo(x + 22, y + 24); ctx.lineTo(x + 30, y + 40); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff6b81'; circle(x + 22, y + 24, 6);
+    ctx.fillStyle = '#d61f2c'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('ICE CREAM', x + v.w / 2 + 8, y + 34); ctx.textAlign = 'left';
+    ctx.fillStyle = '#5d4037'; ctx.fillRect(x + v.w - 24, y + 22, 12, 14);       // wala
+    ctx.fillStyle = '#222'; circle(x + 20, y + v.h - 8, 9); circle(x + v.w - 22, y + v.h - 8, 9);
+    // music notes floating off the cart
+    ctx.fillStyle = '#6c5ce7'; ctx.font = 'bold 13px monospace';
+    const nb = Math.sin(performance.now() / 250) * 5;
+    ctx.fillText('♪', x + v.w / 2 - 16, y - 6 + nb);
+    ctx.fillText('♫', x + v.w / 2 + 10, y - 14 - nb);
   } else if (v.kind === 'dumper') {
     ctx.fillStyle = '#e67e22'; ctx.fillRect(x, y + 4, v.w - 50, v.h - 22);     // bed
     ctx.fillStyle = '#935116'; ctx.fillRect(x + 6, y - 4, v.w - 62, 12);       // dirt heaped
@@ -741,6 +833,22 @@ function drawDecor(d, dark) {
     ctx.fillText('CHAI DHABA', x + 8, GROUND_Y - 34);
     ctx.fillStyle = '#bcaaa4';
     ctx.fillRect(x + 8, GROUND_Y - 14, 18, 14); ctx.fillRect(x + 36, GROUND_Y - 14, 18, 14);
+  } else if (d.kind === 'signal') {
+    // traffic signal at Disco Bakery — blinks yellow during load shedding
+    ctx.fillStyle = '#3d4852'; ctx.fillRect(x, GROUND_Y - 150, 8, 150);
+    ctx.fillStyle = '#222831'; ctx.fillRect(x - 9, GROUND_Y - 196, 26, 62);
+    const ph = (performance.now() / 1000) % 10;
+    const blink = Math.floor(performance.now() / 400) % 2 === 0;
+    const shedOff = isDark() || isFlicker();
+    const lit = shedOff ? (blink ? 'y' : '-') : (ph < 4.5 ? 'r' : ph < 9 ? 'g' : 'y');
+    ctx.fillStyle = lit === 'r' ? '#ff3f34' : '#4a1d1a'; circle(x + 4, GROUND_Y - 184, 8);
+    ctx.fillStyle = lit === 'y' ? '#ffd32a' : '#4a3f12'; circle(x + 4, GROUND_Y - 165, 8);
+    ctx.fillStyle = lit === 'g' ? '#05c46b' : '#123a28'; circle(x + 4, GROUND_Y - 146, 8);
+  } else if (d.kind === 'trolley') {
+    ctx.strokeStyle = '#9aa7b0'; ctx.lineWidth = 2;
+    ctx.strokeRect(x, GROUND_Y - 30, 26, 18);
+    ctx.beginPath(); ctx.moveTo(x + 26, GROUND_Y - 30); ctx.lineTo(x + 34, GROUND_Y - 40); ctx.stroke();
+    ctx.fillStyle = '#222'; circle(x + 5, GROUND_Y - 6, 4); circle(x + 21, GROUND_Y - 6, 4);
   } else if (d.kind === 'busstop') {
     ctx.fillStyle = '#90a4ae'; ctx.fillRect(x, GROUND_Y - 100, 6, 100); ctx.fillRect(x + 120, GROUND_Y - 100, 6, 100);
     ctx.fillStyle = '#1565c0'; ctx.fillRect(x - 6, GROUND_Y - 112, 138, 14);
@@ -901,7 +1009,7 @@ function drawTitle() {
   ctx.font = '16px monospace'; ctx.fillStyle = '#34495e';
   ctx.fillText('Dodge the rickshaws. Mind the manholes. Survive the load shedding.', W / 2, 255);
   ctx.font = 'bold 17px monospace'; ctx.fillStyle = '#1e272e';
-  ctx.fillText('← →  move      SPACE / ↑  jump      P  pause', W / 2, 320);
+  ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 320);
   if (Math.floor(performance.now() / 500) % 2 === 0) {
     ctx.font = 'bold 26px monospace'; ctx.fillStyle = '#c0392b';
     ctx.fillText('PRESS ENTER TO START', W / 2, 400);
