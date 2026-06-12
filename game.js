@@ -29,6 +29,9 @@ function fitCanvas() {
 }
 addEventListener('resize', fitCanvas);
 addEventListener('orientationchange', () => setTimeout(fitCanvas, 250));
+addEventListener('pageshow', fitCanvas);                       // iOS back/forward cache
+addEventListener('load', () => setTimeout(fitCanvas, 300));    // iOS late viewport settle
+if (window.visualViewport) visualViewport.addEventListener('resize', fitCanvas);
 fitCanvas();
 
 // ---------- sprite images (real photos used as sprites) ----------
