@@ -43,7 +43,13 @@ function loadSprite(key, src, opts) {
     const oc = document.createElement('canvas');
     oc.width = img.naturalWidth; oc.height = img.naturalHeight;
     const octx = oc.getContext('2d');
-    octx.drawImage(img, 0, 0);
+    if (opts.flip) {                          // mirror horizontally at load
+      octx.translate(oc.width, 0); octx.scale(-1, 1);
+      octx.drawImage(img, 0, 0);
+      octx.setTransform(1, 0, 0, 1, 0, 0);
+    } else {
+      octx.drawImage(img, 0, 0);
+    }
     if (opts.knockoutWhite) {
       const th = opts.threshold || 236;
       const id = octx.getImageData(0, 0, oc.width, oc.height), d = id.data;
@@ -92,6 +98,7 @@ function loadSprite(key, src, opts) {
   img.src = src;
 }
 loadSprite('rickshaw', 'assets/rakh.png', { knockoutWhite: true });
+loadSprite('bike', 'assets/cd70.png', { knockoutWhite: true, flip: true });
 
 // ---------- world constants ----------
 const GROUND_Y = 470;          // top of footpath where player stands
@@ -306,9 +313,10 @@ function buildLevel() {
   platforms.push({ x: 7250, y: GROUND_Y - 100, w: 130, h: 10, shelter: true });
   addBldg(7440, 260, 340, 'RUFI APARTMENTS', '#a4b0be', '#747d8c', { floors: 7 });
   addBldg(7730, 170, 200, 'GULSHAN PHARMACY', '#7bed9f', '#2ed573', { signText: '#14502c', awning: '#3742fa' });
-  decors.push({ kind: 'kepole', x: 7940, spark: true });
-  wires.push({ x: 7910, y: GROUND_Y - 122, w: 70, h: 26 });
-  addBldg(7960, 280, 310, 'IMTIAZ SQUARE', '#eef3f7', '#c3d1dc', { sign: '#d61f2c', signText: '#ffffff', floors: 4 });
+  addBldg(7900, 135, 290, 'HAMID SQUARE', '#f0e6d2', '#d8c4a0', { sign: '#1b6ca8', signText: '#ffffff', floors: 4 });
+  decors.push({ kind: 'kepole', x: 7880, spark: true });
+  wires.push({ x: 7850, y: GROUND_Y - 122, w: 70, h: 26 });
+  addBldg(8045, 255, 310, 'IMTIAZ SQUARE', '#eef3f7', '#c3d1dc', { sign: '#d61f2c', signText: '#ffffff', floors: 4 });
   decors.push({ kind: 'trolley', x: 8250 });
   solids.push({ x: 8260, y: GROUND_Y - 42, w: 120, h: 42, kind: 'mehran' });
   coinArc(8220, GROUND_Y - 60, 6);
@@ -959,8 +967,24 @@ function drawVehicle(v) {
     ctx.fillStyle = '#222'; circle(x + 34, y + v.h - 8, 11); circle(x + v.w - 38, y + v.h - 8, 11);
     ctx.font = 'bold 12px monospace'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
     ctx.fillText('W-11', x + v.w / 2 + 8, y + 16); ctx.textAlign = 'left';
+  } else if (v.kind === 'bike' && sprites.bike) {
+    // real CD70 photo (mirrored to face left) with a rider on top
+    const spr = sprites.bike, c = spr.content || { x: 0, y: 0, w: spr.width, h: spr.height };
+    const s = Math.min((v.w + 18) / c.w, (v.h + 6) / c.h);
+    const dw = spr.width * s, dh = spr.height * s;
+    const dx = x + v.w / 2 - (c.x + c.w / 2) * s;
+    const dy = y + v.h - (c.y + c.h) * s + 1;
+    ctx.drawImage(spr, dx, dy, dw, dh);
+    // rider seated over the bike (faces left)
+    const seatX = x + v.w / 2 + 4, seatY = y + v.h - dh * 0.42;
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(seatX - 5, seatY, 13, 13);          // torso
+    ctx.fillStyle = '#24527a'; ctx.fillRect(seatX - 9, seatY + 2, 6, 4);        // forward arm to bars
+    ctx.fillStyle = '#3a2f26'; ctx.fillRect(seatX + 5, seatY + 11, 5, 8);       // thigh
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(seatX - 4, seatY - 9, 9, 9);        // head
+    ctx.fillStyle = '#b22222'; ctx.fillRect(seatX - 5, seatY - 12, 11, 5);      // helmet
+    ctx.fillStyle = '#7a1818'; ctx.fillRect(seatX - 8, seatY - 10, 3, 3);       // helmet front (left)
   } else if (v.kind === 'bike') {
-    // motorcycle facing left
+    // motorcycle facing left (fallback drawing)
     wheel(x + 12, y + v.h - 9, 10); wheel(x + v.w - 12, y + v.h - 9, 10);
     ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(x + 12, y + v.h - 9); ctx.lineTo(x + 30, y + 24);
