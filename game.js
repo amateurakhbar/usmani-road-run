@@ -113,6 +113,8 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR' && (state === 'gameover' || state === 'win')) startGame();
   if (e.code === 'KeyP' && state === 'play') paused = !paused;
   if (e.code === 'KeyM') musicOn = !musicOn;
+  if (!e.repeat && (e.code === 'ArrowLeft' || e.code === 'KeyA')) recordCheat('L');
+  if (!e.repeat && (e.code === 'ArrowRight' || e.code === 'KeyD')) recordCheat('R');
 });
 addEventListener('keyup', e => keys[e.code] = false);
 
@@ -359,6 +361,17 @@ let state = 'title';   // title | play | gameover | win
 let paused = false;
 let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, toast, deathX;
 let iceCount = 0, lastIceX = -99999;
+let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
+
+function recordCheat(dir) {
+  cheatSeq.push(dir);
+  if (cheatSeq.length > 6) cheatSeq.shift();
+  if (cheatSeq.join('') === 'LLLRRR' && state === 'play' && !godMode) {
+    godMode = true;
+    toast = { text: 'CHEAT ON: UNLIMITED HEALTH!', t: 160 };
+    sfx.power();
+  }
+}
 
 function startGame() {
   player = { x: 60, y: GROUND_Y - 44, w: 26, h: 44, vx: 0, vy: 0, onGround: true, face: 1, anim: 0 };
@@ -370,6 +383,7 @@ function startGame() {
   shedT = 0;
   toast = { text: 'MASKAN CHOWRANGI', t: 150 };
   iceCount = 0; lastIceX = -99999;
+  godMode = false; cheatSeq = [];     // cheat lasts one run only
   tStart = performance.now(); tEnd = 0;
   coinsAll.forEach(c => c.taken = false);
   powerups.forEach(p => p.taken = false);
@@ -423,14 +437,16 @@ function rectHit(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y 
 
 function damage(knockDir) {
   if (iframes > 0 || starT > 0) return;
-  hearts--; iframes = 85; sfx.hurt();
+  if (!godMode) hearts--;
+  iframes = 85; sfx.hurt();
   player.vy = -7; player.vx = 6 * knockDir;
   if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); }
 }
 function respawn() {
   let cp = CHECKPOINTS[0];
   for (const c of CHECKPOINTS) if (c < player.x - 20) cp = c;
-  hearts--; sfx.fall();
+  if (!godMode) hearts--;
+  sfx.fall();
   if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); return; }
   player.x = cp; player.y = groundYAt(cp) - player.h; player.vx = 0; player.vy = 0;
   iframes = 100;
@@ -1295,7 +1311,7 @@ function drawHUD() {
   // hearts
   for (let i = 0; i < 4; i++) {
     if (i >= Math.max(hearts, 3) && hearts <= 3 && i >= 3) continue;
-    ctx.fillStyle = i < hearts ? '#e74c3c' : '#4a4a55';
+    ctx.fillStyle = godMode ? '#ffd32a' : (i < hearts ? '#e74c3c' : '#4a4a55');
     heart(24 + i * 30, 22, 11);
   }
   // rupees
@@ -1410,6 +1426,8 @@ function bindTouchBtn(id, code) {
   const press = e => {
     e.preventDefault(); initAudio();
     keys[code] = true;
+    if (code === 'ArrowLeft') recordCheat('L');
+    if (code === 'ArrowRight') recordCheat('R');
     if (code === 'Space' && (state === 'title' || state === 'gameover' || state === 'win')) startGame();
   };
   const release = e => { e.preventDefault(); keys[code] = false; };
