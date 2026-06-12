@@ -63,19 +63,26 @@ const sfx = {
 let musicOn = true;
 let musicGain = null, iceGain = null;
 let mStep = 0, mNext = 0, jStep = 0, jNext = 0;
-const MSTEP = 60 / 116 / 2;            // 116 bpm, 8th notes
-const JSTEP_T = 60 / 92 / 2;           // jingle tempo
-// original melody — bouncy desi-pop feel in D minor (NOT the Babia melody)
+const MSTEP = 60 / 124 / 2;            // 124 bpm, 8th notes
+const JSTEP_T = 0.17;                  // Für Elise 16ths, poco moto
+// original melody — bright 90s-pop groove, G major I-vi-IV-V (Babia *vibe*, original notes)
 const LEAD = [
-  74, 76, 77, 79, 81, 0, 79, 77, 76, 0, 74, 76, 74, 0, 0, 0,
-  77, 79, 81, 84, 86, 0, 84, 81, 79, 0, 81, 79, 77, 0, 74, 0,
+  67, 0, 71, 74, 71, 0, 74, 79, 76, 0, 74, 71, 74, 0, 0, 0,
+  72, 0, 76, 79, 74, 0, 71, 67, 69, 71, 69, 67, 67, 0, 0, 0,
 ];
 const BASS = [
-  50, 0, 50, 0, 50, 0, 57, 0, 58, 0, 58, 0, 53, 0, 53, 0,
-  53, 0, 53, 0, 53, 0, 48, 0, 48, 0, 48, 0, 55, 0, 55, 0,
+  55, 0, 55, 62, 0, 55, 0, 62, 52, 0, 52, 59, 0, 52, 0, 59,
+  48, 0, 48, 55, 0, 48, 0, 55, 50, 0, 50, 57, 0, 50, 0, 57,
 ];
-// ice cream wala jingle — original music-box ditty
-const JINGLE = [84, 88, 91, 96, 91, 88, 84, 0, 86, 89, 93, 98, 96, 91, 84, 0];
+// ice cream wala jingle — Für Elise (Beethoven, public domain — the real Karachi cart anthem)
+const JINGLE = [
+  76, 75, 76, 75, 76, 71, 74, 72,
+  69, 0, 60, 64, 69, 71, 0, 64,
+  68, 71, 72, 0, 64, 76, 75, 76,
+  75, 76, 71, 74, 72, 69, 0, 60,
+  64, 69, 71, 0, 64, 72, 71, 69,
+  0, 0, 0, 0,
+];
 
 function midiHz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 function ensureMusicNodes() {
@@ -269,6 +276,7 @@ buildLevel();
 let state = 'title';   // title | play | gameover | win
 let paused = false;
 let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, toast, deathX;
+let iceCount = 0, lastIceX = -99999;
 
 function startGame() {
   player = { x: 60, y: GROUND_Y - 44, w: 26, h: 44, vx: 0, vy: 0, onGround: true, face: 1, anim: 0 };
@@ -279,6 +287,7 @@ function startGame() {
   iframes = 0; boostT = 0; starT = 0;
   shedT = 0;
   toast = { text: 'MASKAN CHOWRANGI', t: 150 };
+  iceCount = 0; lastIceX = -99999;
   tStart = performance.now(); tEnd = 0;
   coinsAll.forEach(c => c.taken = false);
   powerups.forEach(p => p.taken = false);
@@ -310,8 +319,10 @@ function spawnVehicle() {
   const z = zoneAt(player.x);
   const pool = ZONE_SPAWN[z];
   let kind = pool[Math.floor(Math.random() * pool.length)];
-  // ice cream wala cruises the commercial stretches now and then
-  if (z <= 3 && Math.random() < 0.14) kind = 'icecream';
+  // ice cream wala: max 3 per route, spaced well apart
+  if (z <= 3 && iceCount < 3 && player.x - lastIceX > 2200 && Math.random() < 0.08) {
+    kind = 'icecream'; iceCount++; lastIceX = player.x;
+  }
   const t = VTYPES[kind];
   const x = cam.x + W + 80;
   if (x > LEN - 100) return;
