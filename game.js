@@ -302,7 +302,7 @@ const VTYPES = {
   bus:      { w: 220, h: 64, sp: 2.1, score: 0 },
   bike:     { w: 64, h: 50, sp: 4.3, score: 0 },
   dumper:   { w: 170, h: 72, sp: 1.9, score: 0 },
-  icecream: { w: 104, h: 58, sp: 1.4, score: 0 },
+  icecream: { w: 122, h: 60, sp: 1.4, score: 0 },
 };
 function zoneAt(x) { let z = 0; for (let i = 0; i < ZONES.length; i++) if (x >= ZONES[i].x) z = i; return z; }
 const ZONE_SPAWN = [
@@ -326,7 +326,9 @@ function spawnVehicle() {
   const t = VTYPES[kind];
   const x = cam.x + W + 80;
   if (x > LEN - 100) return;
-  vehicles.push({ kind, x, w: t.w, h: t.h, vx: -(t.sp + Math.random() * 0.6), honked: false });
+  const CARCOLORS = ['#ecf0f1', '#2d3436', '#c0392b', '#2980b9', '#16a085', '#d4ac0d', '#7f8c8d'];
+  vehicles.push({ kind, x, w: t.w, h: t.h, vx: -(t.sp + Math.random() * 0.6), honked: false,
+    color: CARCOLORS[Math.floor(Math.random() * CARCOLORS.length)] });
 }
 
 // ---------- physics helpers ----------
@@ -657,6 +659,14 @@ function wheel(cx, cy, r) {
   ctx.fillStyle = '#aab2b8'; circle(cx, cy, r * 0.32);   // hub
   ctx.fillStyle = '#161616'; circle(cx, cy, 1.5);        // bolt
 }
+function spokeWheel(cx, cy, r) {
+  ctx.fillStyle = '#161616'; circle(cx, cy, r);          // black tyre
+  ctx.fillStyle = '#e0231a'; circle(cx, cy, r - 3);      // red rim
+  ctx.fillStyle = '#eef0f1'; circle(cx, cy, r - 5);      // spoke field
+  ctx.strokeStyle = '#9aa0a6'; ctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) { const a = i * 0.785; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * (r - 5), cy + Math.sin(a) * (r - 5)); ctx.stroke(); }
+  ctx.fillStyle = '#444'; circle(cx, cy, 2.5);           // hub
+}
 
 function drawTrenchesAndWires() {
   for (const wz of wires) {
@@ -758,10 +768,19 @@ function drawVehicle(v) {
     ctx.fillStyle = '#e74c3c'; ctx.fillRect(x + v.w - 26, y + 16, 22, 16);     // pillion box
     wheel(x + 14, y + v.h - 8, 9); wheel(x + v.w - 16, y + v.h - 8, 9);
   } else if (v.kind === 'car') {
-    ctx.fillStyle = '#ecf0f1'; ctx.fillRect(x, y + 16, v.w, v.h - 28);
-    ctx.fillRect(x + 24, y + 2, v.w - 48, 18);
-    ctx.fillStyle = '#85c1e9'; ctx.fillRect(x + 28, y + 5, v.w - 56, 13);
-    ctx.fillStyle = '#222'; circle(x + 22, y + v.h - 8, 9); circle(x + v.w - 22, y + v.h - 8, 9);
+    const c = v.color || '#ecf0f1';
+    ctx.fillStyle = c; ctx.fillRect(x, y + 20, v.w, v.h - 30);                  // lower body
+    ctx.beginPath();                                                            // cabin, windscreen slants down-left (front)
+    ctx.moveTo(x + 20, y + 20); ctx.lineTo(x + 32, y + 4);
+    ctx.lineTo(x + v.w - 24, y + 4); ctx.lineTo(x + v.w - 14, y + 20); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#bfe0f0';
+    ctx.beginPath();
+    ctx.moveTo(x + 24, y + 18); ctx.lineTo(x + 34, y + 7);
+    ctx.lineTo(x + v.w - 26, y + 7); ctx.lineTo(x + v.w - 18, y + 18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c; ctx.fillRect(x + v.w / 2 - 2, y + 7, 4, 11);             // B-pillar
+    ctx.fillStyle = '#fff3b0'; ctx.fillRect(x + 1, y + 22, 5, 6);               // headlight (front-left)
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(x + v.w - 4, y + 22, 3, 6);         // tail-light (rear-right)
+    wheel(x + 22, y + v.h - 8, 9); wheel(x + v.w - 22, y + v.h - 8, 9);
   } else if (v.kind === 'bus') {
     ctx.fillStyle = '#c0392b'; ctx.fillRect(x, y + 6, v.w, v.h - 18);
     ctx.fillStyle = '#f39c12'; ctx.fillRect(x, y + 6, v.w, 9);
@@ -771,37 +790,82 @@ function drawVehicle(v) {
     ctx.fillStyle = '#aed6f1';
     for (let i = 10; i < v.w - 30; i += 34) ctx.fillRect(x + i, y + 28, 22, 14);
     ctx.fillStyle = '#7f8c8d'; ctx.fillRect(x + 10, y, v.w - 20, 8);          // roof rack
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, y + 24, 20, 18);               // front windscreen (left)
+    ctx.fillStyle = '#aed6f1'; ctx.fillRect(x + 2, y + 26, 16, 12);
+    ctx.fillStyle = '#fff3b0'; ctx.fillRect(x + 1, y + v.h - 24, 4, 6);       // headlight (front-left)
     ctx.fillStyle = '#222'; circle(x + 34, y + v.h - 8, 11); circle(x + v.w - 38, y + v.h - 8, 11);
     ctx.font = 'bold 12px monospace'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-    ctx.fillText('W-11', x + v.w / 2, y + 16); ctx.textAlign = 'left';
+    ctx.fillText('W-11', x + v.w / 2 + 8, y + 16); ctx.textAlign = 'left';
   } else if (v.kind === 'bike') {
-    ctx.fillStyle = '#c0392b'; ctx.fillRect(x + 8, y + 26, v.w - 18, 8);       // frame
-    ctx.fillStyle = '#5d4037'; ctx.fillRect(x + 22, y + 4, 14, 14);            // rider head
-    ctx.fillStyle = '#34495e'; ctx.fillRect(x + 18, y + 16, 22, 16);           // rider body
-    ctx.fillStyle = '#222'; circle(x + 12, y + v.h - 9, 10); circle(x + v.w - 12, y + v.h - 9, 10);
+    // motorcycle facing left
+    wheel(x + 12, y + v.h - 9, 10); wheel(x + v.w - 12, y + v.h - 9, 10);
+    ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x + 12, y + v.h - 9); ctx.lineTo(x + 30, y + 24);
+    ctx.lineTo(x + v.w - 12, y + v.h - 9); ctx.stroke();                        // frame
+    ctx.beginPath(); ctx.moveTo(x + 12, y + v.h - 9); ctx.lineTo(x + 8, y + 20); ctx.stroke(); // fork (left)
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x + 5, y + 18, 9, 3);              // handlebar
+    ctx.fillStyle = '#888'; ctx.fillRect(x + v.w - 16, y + 28, 10, 4);         // exhaust (right)
+    ctx.fillStyle = '#34495e'; ctx.fillRect(x + 24, y + 14, 18, 18);          // rider torso
+    ctx.fillStyle = '#5d4037'; ctx.fillRect(x + 23, y + 4, 13, 12);           // head
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(x + 21, y + 2, 17, 5);            // helmet
   } else if (v.kind === 'icecream') {
-    ctx.fillStyle = '#fdfdfd'; ctx.fillRect(x, y + 18, v.w, v.h - 32);          // white cart body
-    ctx.fillStyle = '#ff7eb3';                                                   // pink striped canopy
-    for (let i = 0; i < v.w; i += 16) ctx.fillRect(x + i, y + 6, 9, 12);
-    ctx.fillStyle = '#e84393'; ctx.fillRect(x, y + 16, v.w, 4);
-    ctx.fillStyle = '#f6b93b';                                                   // painted cone
-    ctx.beginPath(); ctx.moveTo(x + 14, y + 40); ctx.lineTo(x + 22, y + 24); ctx.lineTo(x + 30, y + 40); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#ff6b81'; circle(x + 22, y + 24, 6);
-    ctx.fillStyle = '#d61f2c'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('ICE CREAM', x + v.w / 2 + 8, y + 34); ctx.textAlign = 'left';
-    ctx.fillStyle = '#5d4037'; ctx.fillRect(x + v.w - 24, y + 22, 12, 14);       // wala
-    ctx.fillStyle = '#222'; circle(x + 20, y + v.h - 8, 9); circle(x + v.w - 22, y + v.h - 8, 9);
-    // music notes floating off the cart
+    // Wall's-style ice cream tricycle, facing LEFT (bike front-left, cart on the right)
+    const R = '#e0231a', RD = '#a5160f';
+    const wy = y + v.h - 11;
+    // --- wheels: small bike wheel (left), big cart wheel (right) ---
+    spokeWheel(x + 22, wy, 13);
+    spokeWheel(x + v.w - 24, wy, 16);
+    // --- bike frame + rider (left) ---
+    ctx.strokeStyle = R; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x + 22, wy); ctx.lineTo(x + 42, y + 30);      // down/seat tube
+    ctx.lineTo(x + 56, wy); ctx.lineTo(x + 22, wy);          // chain stay + crank
+    ctx.moveTo(x + 42, y + 30); ctx.lineTo(x + 18, y + 26);  // top tube to bars
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 22, wy); ctx.lineTo(x + 16, y + 24); ctx.stroke(); // fork
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x + 36, y + 26, 13, 5);  // saddle
+    ctx.fillStyle = '#888'; circle(x + 49, wy - 1, 3);              // pedal crank
+    ctx.fillStyle = '#34495e'; ctx.fillRect(x + 30, y + 12, 14, 16); // rider torso
+    ctx.fillStyle = '#c68642'; ctx.fillRect(x + 31, y + 3, 12, 11);  // rider head
+    ctx.fillStyle = '#1e272e'; ctx.fillRect(x + 30, y + 1, 14, 4);   // cap
+    // --- cart box (right) ---
+    const bx = x + v.w - 56, bw = 54, byT = y + 18, bh = v.h - 26;
+    ctx.fillStyle = '#fff'; ctx.fillRect(bx, byT, bw, bh);          // white body
+    ctx.fillStyle = R; ctx.fillRect(bx - 2, byT - 7, bw + 6, 11);   // red lid
+    ctx.fillStyle = '#ffd1cd'; ctx.fillRect(bx, byT - 5, bw, 3);    // lid highlight
+    ctx.fillStyle = R; ctx.fillRect(bx, byT + bh - 14, bw, 14);     // red strawberry band
+    ctx.fillStyle = '#ffb3ab'; for (let i = 4; i < bw; i += 12) circle(bx + i, byT + bh - 6, 2); // splash dots
+    // heart motif + label (generic, not the trademark)
+    ctx.fillStyle = R; ctx.fillRect(bx + 6, byT + 6, 18, 16);
+    ctx.fillStyle = '#fff'; heart(bx + 15, byT + 13, 6);
+    ctx.fillStyle = R; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('ICE', bx + 28, byT + 12); ctx.fillText('CREAM', bx + 28, byT + 21);
+    // --- pole + parasol ---
+    const pX = bx + bw / 2, pTop = y - 36, pr = 42;
+    ctx.strokeStyle = '#9aa0a6'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(pX, byT - 6); ctx.lineTo(pX, pTop); ctx.stroke();
+    ctx.fillStyle = R;                                              // red dome
+    ctx.beginPath(); ctx.moveTo(pX - pr, pTop + 6); ctx.quadraticCurveTo(pX, pTop - 26, pX + pr, pTop + 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';                                         // white panel wedges
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath(); ctx.moveTo(pX, pTop - 18); ctx.lineTo(pX + s * 16, pTop + 5); ctx.lineTo(pX + s * 30, pTop + 5); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = R;                                             // scalloped fringe
+    for (let sx = pX - pr; sx < pX + pr; sx += 11) circle(sx + 5, pTop + 6, 5);
+    ctx.fillStyle = '#888'; circle(pX, pTop - 24, 2.5);           // finial
+    // music notes
     ctx.fillStyle = '#6c5ce7'; ctx.font = 'bold 13px monospace';
     const nb = Math.sin(performance.now() / 250) * 5;
-    ctx.fillText('♪', x + v.w / 2 - 16, y - 6 + nb);
-    ctx.fillText('♫', x + v.w / 2 + 10, y - 14 - nb);
+    ctx.fillText('♪', x + 6, y + 4 + nb);
+    ctx.fillText('♫', x + 24, y - 6 - nb);
   } else if (v.kind === 'dumper') {
-    ctx.fillStyle = '#e67e22'; ctx.fillRect(x, y + 4, v.w - 50, v.h - 22);     // bed
-    ctx.fillStyle = '#935116'; ctx.fillRect(x + 6, y - 4, v.w - 62, 12);       // dirt heaped
-    ctx.fillStyle = '#d35400'; ctx.fillRect(x + v.w - 48, y + 14, 44, v.h - 32);
-    ctx.fillStyle = '#aed6f1'; ctx.fillRect(x + v.w - 40, y + 18, 24, 14);
-    ctx.fillStyle = '#222'; circle(x + 26, y + v.h - 9, 12); circle(x + 70, y + v.h - 9, 12); circle(x + v.w - 26, y + v.h - 9, 12);
+    // cab (front) on the LEFT, dump bed on the right
+    ctx.fillStyle = '#d35400'; ctx.fillRect(x, y + 14, 46, v.h - 32);          // cab
+    ctx.fillStyle = '#aed6f1'; ctx.fillRect(x + 6, y + 18, 26, 14);            // windscreen
+    ctx.fillStyle = '#fff3b0'; ctx.fillRect(x, y + v.h - 24, 4, 6);            // headlight (front-left)
+    ctx.fillStyle = '#e67e22'; ctx.fillRect(x + 50, y + 4, v.w - 50, v.h - 22);// bed
+    ctx.fillStyle = '#935116'; ctx.fillRect(x + 56, y - 4, v.w - 64, 12);      // dirt heaped
+    ctx.fillStyle = '#222'; circle(x + 22, y + v.h - 9, 12); circle(x + v.w - 60, y + v.h - 9, 12); circle(x + v.w - 24, y + v.h - 9, 12);
   }
 }
 
