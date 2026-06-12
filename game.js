@@ -735,30 +735,53 @@ function drawVehicle(v) {
   const x = px(v.x), y = groundYAt(v.x + v.w / 2) - v.h;
   if (v.kind === 'rickshaw') {
     // Karachi green auto-rickshaw, facing left (direction of travel)
-    const G = '#56a567', GD = '#2f6b3d', K = '#9b9587', KD = '#6f6a5b';
-    // khaki canopy roof, rounded toward the back (right)
-    ctx.fillStyle = K; ctx.fillRect(x + 14, y + 2, v.w - 18, 11);
-    ctx.fillStyle = K; ctx.fillRect(x + v.w - 10, y + 5, 7, 9);                 // rounded rear lip
-    ctx.fillStyle = KD; ctx.fillRect(x + 14, y + 11, v.w - 14, 4);             // canopy shadow
-    ctx.fillStyle = '#1c1c1c'; ctx.fillRect(x + 10, y, 16, 5);                 // black front visor
-    // rounded green rear (passenger back)
-    ctx.fillStyle = G; ctx.fillRect(x + v.w - 26, y + 13, 24, v.h - 28);
-    ctx.fillStyle = GD; ctx.fillRect(x + v.w - 5, y + 18, 3, v.h - 34);        // rear edge shade
-    // open passenger cabin (white) with green centre pillar
-    ctx.fillStyle = '#f3f6f3'; ctx.fillRect(x + 18, y + 15, v.w - 46, 19);
-    ctx.fillStyle = G; ctx.fillRect(x + 18 + (v.w - 46) / 2 - 3, y + 15, 6, 19);
-    // lower green body
-    ctx.fillStyle = G; ctx.fillRect(x, y + 33, v.w, v.h - 41);
-    ctx.fillStyle = GD; ctx.fillRect(x, y + 33, v.w, 3);                       // body top trim
-    // front cowl + windscreen (left)
-    ctx.fillStyle = G; ctx.fillRect(x, y + 16, 17, 18);
-    ctx.fillStyle = '#cfe8f5'; ctx.fillRect(x + 2, y + 18, 12, 12);           // windscreen
-    ctx.fillStyle = '#3b2f25'; ctx.fillRect(x + 21, y + 18, 10, 15);          // driver
-    ctx.fillStyle = '#f4b740'; circle(x + 3, y + 30, 3);                      // amber headlight
-    ctx.fillStyle = GD; ctx.fillRect(x + 2, y + v.h - 16, 24, 6);             // front mudguard
-    // wheels — front + rear, black tyre with bright hub
-    wheel(x + 14, y + v.h - 7, 9);
-    wheel(x + v.w - 16, y + v.h - 7, 10);
+    const G = '#4f9d5f', GD = '#2f6e3d', K = '#968f7e', KD = '#6f6857';
+    const wy = y + v.h - 7;
+    // curved green fenders behind each wheel
+    ctx.fillStyle = GD;
+    ctx.beginPath(); ctx.arc(x + 16, wy - 1, 14, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + v.w - 16, wy - 1, 15, Math.PI, 0); ctx.closePath(); ctx.fill();
+    wheel(x + 16, wy, 9);
+    wheel(x + v.w - 16, wy, 10);
+    // main green body — rounded rear (right), sloped cowl (left)
+    ctx.fillStyle = G;
+    ctx.beginPath();
+    ctx.moveTo(x + 2, y + 32);
+    ctx.lineTo(x + 2, y + 24);
+    ctx.quadraticCurveTo(x + 4, y + 17, x + 15, y + 17);            // front cowl curve
+    ctx.lineTo(x + v.w - 18, y + 17);
+    ctx.quadraticCurveTo(x + v.w - 2, y + 19, x + v.w - 2, y + 34); // rounded rear shoulder
+    ctx.lineTo(x + v.w - 2, y + v.h - 8);
+    ctx.lineTo(x + 2, y + v.h - 8);
+    ctx.closePath(); ctx.fill();
+    // open passenger cabin (white gap) with grab-pole + centre pillar
+    ctx.fillStyle = '#eef1ee'; ctx.fillRect(x + 21, y + 18, v.w - 48, 15);
+    ctx.fillStyle = GD; ctx.fillRect(x + 21, y + 18, 3, 15);                   // front grab pole
+    ctx.fillStyle = G; ctx.fillRect(x + 21 + (v.w - 48) / 2, y + 18, 4, 15);   // centre pillar
+    ctx.fillStyle = G; ctx.fillRect(x + v.w - 27, y + 18, 6, 15);             // rear quarter panel
+    // windscreen + driver (front)
+    ctx.fillStyle = '#13456e'; ctx.fillRect(x + 5, y + 18, 14, 14);           // dark screen frame
+    ctx.fillStyle = '#cfe8f2'; ctx.fillRect(x + 6, y + 19, 12, 10);           // glass
+    ctx.fillStyle = '#3a2f26'; ctx.fillRect(x + 22, y + 19, 9, 13);           // driver
+    // --- khaki canopy: arched dome, sloping toward the back ---
+    ctx.fillStyle = K;
+    ctx.beginPath();
+    ctx.moveTo(x + 5, y + 17);
+    ctx.quadraticCurveTo(x + 7, y + 2, x + 28, y + 3);              // front rise
+    ctx.lineTo(x + v.w - 16, y + 5);                                // roof line
+    ctx.quadraticCurveTo(x + v.w - 3, y + 7, x + v.w - 6, y + 18);  // rounded rear
+    ctx.lineTo(x + 5, y + 17); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = KD; ctx.fillRect(x + 8, y + 14, v.w - 18, 3);             // canopy shadow lip
+    // black front peak / sun visor
+    ctx.fillStyle = '#1b1b1b';
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y + 15); ctx.lineTo(x + 8, y + 2);
+    ctx.lineTo(x + 19, y + 3); ctx.lineTo(x + 15, y + 15);
+    ctx.closePath(); ctx.fill();
+    // headlamp + amber indicator (front nose)
+    ctx.fillStyle = '#2a2a2a'; circle(x + 3, y + 28, 4);
+    ctx.fillStyle = '#f3c34a'; circle(x + 3, y + 28, 2.5);                    // headlamp
+    ctx.fillStyle = '#e67e22'; ctx.fillRect(x + 1, y + 33, 4, 3);            // indicator
   } else if (v.kind === 'qingqi') {
     ctx.fillStyle = '#1e272e'; ctx.fillRect(x + 4, y, v.w - 8, 14);            // canopy
     ctx.fillStyle = '#2980b9'; ctx.fillRect(x, y + 12, v.w, v.h - 26);
