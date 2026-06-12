@@ -9,6 +9,44 @@ const ctx = cv.getContext('2d');
 const W = 960, H = 540;
 ctx.imageSmoothingEnabled = false;
 
+// ---------- sprite images (real photos used as sprites) ----------
+const sprites = {};
+function loadSprite(key, src, opts) {
+  opts = opts || {};
+  const img = new Image();
+  img.onload = () => {
+    const oc = document.createElement('canvas');
+    oc.width = img.naturalWidth; oc.height = img.naturalHeight;
+    const octx = oc.getContext('2d');
+    octx.drawImage(img, 0, 0);
+    if (opts.knockoutWhite) {
+      const th = opts.threshold || 236;
+      const id = octx.getImageData(0, 0, oc.width, oc.height), d = id.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] >= th && d[i + 1] >= th && d[i + 2] >= th) d[i + 3] = 0;
+      }
+      octx.putImageData(id, 0, 0);
+    }
+    // measure opaque content bounds (ignore sparse rows/cols = knockout specks)
+    const id2 = octx.getImageData(0, 0, oc.width, oc.height).data;
+    const rowC = new Array(oc.height).fill(0), colC = new Array(oc.width).fill(0);
+    for (let py = 0; py < oc.height; py++)
+      for (let pxx = 0; pxx < oc.width; pxx++)
+        if (id2[(py * oc.width + pxx) * 4 + 3] > 32) { rowC[py]++; colC[pxx]++; }
+    const MIN = Math.max(4, Math.round(oc.width * 0.02));   // a real edge spans many px
+    let minX = 0, maxX = oc.width - 1, minY = 0, maxY = oc.height - 1;
+    while (minY < maxY && rowC[minY] < MIN) minY++;
+    while (maxY > minY && rowC[maxY] < MIN) maxY--;
+    while (minX < maxX && colC[minX] < MIN) minX++;
+    while (maxX > minX && colC[maxX] < MIN) maxX--;
+    oc.content = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    sprites[key] = oc;
+  };
+  img.onerror = () => {};   // missing file -> game falls back to drawn sprite
+  img.src = src;
+}
+loadSprite('rickshaw', 'assets/rakh.png', { knockoutWhite: true });
+
 // ---------- world constants ----------
 const GROUND_Y = 470;          // top of footpath where player stands
 const LEN = 13200;             // world length in px
@@ -262,9 +300,10 @@ function buildLevel() {
   // --- Zone F: Flyover ramp ---
   banners.push({ x: 11700, text: 'GULSHAN CHOWRANGI' });
   decors.push({ kind: 'ferris', x: 12900 });   // Aladin Park in the distance
+  decors.push({ kind: 'police', x: 12560 });    // police checkpoint at the bridge
   coinRow(11750, groundYAt(11850) - 80, 5, 40);
   coinRow(12100, groundYAt(12200) - 80, 5, 40);
-  coinRow(12550, BRIDGE_Y - 70, 6, 40);
+  coinRow(12340, BRIDGE_Y - 70, 5, 40);
   decors.push({ kind: 'finish', x: FINISH_X });
 
   // streetlights along the whole road
@@ -653,6 +692,36 @@ function drawSolid(s) {
 }
 
 function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+function drawCop(cx, gy, face) {
+  // Karachi police constable: khaki shirt, dark trousers, peaked cap
+  face = face || 1;
+  ctx.fillStyle = '#2b2f38';                                  // trousers
+  ctx.fillRect(cx - 6, gy - 18, 5, 18); ctx.fillRect(cx + 1, gy - 18, 5, 18);
+  ctx.fillStyle = '#1a1d23'; ctx.fillRect(cx - 7, gy - 2, 7, 3); ctx.fillRect(cx, gy - 2, 7, 3); // boots
+  ctx.fillStyle = '#a98c54';                                  // khaki shirt
+  ctx.fillRect(cx - 7, gy - 33, 14, 16);
+  ctx.fillStyle = '#8f7544'; ctx.fillRect(cx - 7, gy - 33, 14, 3);  // shoulder line
+  ctx.fillStyle = '#c69a6b'; ctx.fillRect(cx + 6 * face - 2, gy - 31, 4, 12); // arm
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 5, gy - 44, 10, 11);          // head
+  ctx.fillStyle = '#23303f'; ctx.fillRect(cx - 6, gy - 47, 12, 5);           // cap
+  ctx.fillStyle = '#23303f'; ctx.fillRect(cx + (face > 0 ? 5 : -9), gy - 44, 4, 2); // cap peak
+  ctx.fillStyle = '#1a1d23'; ctx.fillRect(cx - 4 + (face > 0 ? 3 : 0), gy - 40, 2, 2); // eye
+}
+function speechBubble(cx, by, text) {
+  ctx.font = 'bold 13px monospace';
+  const tw = ctx.measureText(text).width, bw = tw + 22, bh = 30;
+  const bx = cx - bw / 2;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1e272e'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 7); else ctx.rect(bx, by, bw, bh);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.beginPath();                    // tail
+  ctx.moveTo(cx - 6, by + bh); ctx.lineTo(cx + 4, by + bh); ctx.lineTo(cx - 2, by + bh + 9); ctx.closePath();
+  ctx.fill(); ctx.strokeStyle = '#1e272e';
+  ctx.beginPath(); ctx.moveTo(cx - 6, by + bh); ctx.lineTo(cx - 2, by + bh + 9); ctx.lineTo(cx + 4, by + bh); ctx.stroke();
+  ctx.fillStyle = '#1e272e'; ctx.textAlign = 'center';
+  ctx.fillText(text, cx, by + bh / 2 + 5); ctx.textAlign = 'left';
+}
 function wheel(cx, cy, r) {
   ctx.fillStyle = '#161616'; circle(cx, cy, r);          // tyre
   ctx.fillStyle = '#3a3f44'; circle(cx, cy, r * 0.55);   // rim
@@ -733,55 +802,64 @@ function steam(x, y) {
 
 function drawVehicle(v) {
   const x = px(v.x), y = groundYAt(v.x + v.w / 2) - v.h;
-  if (v.kind === 'rickshaw') {
-    // Karachi green auto-rickshaw, facing left (direction of travel)
-    const G = '#4f9d5f', GD = '#2f6e3d', K = '#968f7e', KD = '#6f6857';
-    const wy = y + v.h - 7;
-    // curved green fenders behind each wheel
+  if (v.kind === 'rickshaw' && sprites.rickshaw) {
+    // real photo sprite — scale by opaque content, land its wheels on the road
+    const spr = sprites.rickshaw, c = spr.content || { x: 0, y: 0, w: spr.width, h: spr.height };
+    const s = Math.min((v.w + 16) / c.w, (v.h + 8) / c.h);
+    const dw = spr.width * s, dh = spr.height * s;
+    const dx = x + v.w / 2 - (c.x + c.w / 2) * s;          // centre content over the box
+    const dy = y + v.h - (c.y + c.h) * s + 1;             // content bottom on the ground line
+    ctx.drawImage(spr, dx, dy, dw, dh);
+  } else if (v.kind === 'rickshaw') {
+    // fallback drawn sprite (used until assets/rickshaw.png is present)
+    const G = '#4f9d5f', GD = '#2f6e3d', K = '#9a917c', KD = '#6f6857';
+    const wy = y + v.h - 6;
+    // curved green fenders over wheels (front smaller, rear larger)
     ctx.fillStyle = GD;
-    ctx.beginPath(); ctx.arc(x + 16, wy - 1, 14, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 16, wy - 1, 13, Math.PI, 0); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.arc(x + v.w - 16, wy - 1, 15, Math.PI, 0); ctx.closePath(); ctx.fill();
-    wheel(x + 16, wy, 9);
+    wheel(x + 16, wy, 8);
     wheel(x + v.w - 16, wy, 10);
-    // main green body — rounded rear (right), sloped cowl (left)
+    // lower green body, rounded nose (left) and tail (right)
     ctx.fillStyle = G;
     ctx.beginPath();
-    ctx.moveTo(x + 2, y + 32);
-    ctx.lineTo(x + 2, y + 24);
-    ctx.quadraticCurveTo(x + 4, y + 17, x + 15, y + 17);            // front cowl curve
-    ctx.lineTo(x + v.w - 18, y + 17);
-    ctx.quadraticCurveTo(x + v.w - 2, y + 19, x + v.w - 2, y + 34); // rounded rear shoulder
-    ctx.lineTo(x + v.w - 2, y + v.h - 8);
-    ctx.lineTo(x + 2, y + v.h - 8);
+    ctx.moveTo(x + 8, y + 35);
+    ctx.quadraticCurveTo(x + 1, y + 37, x + 2, y + 45);            // front nose
+    ctx.lineTo(x + 2, y + v.h - 6);
+    ctx.lineTo(x + v.w - 2, y + v.h - 6);
+    ctx.lineTo(x + v.w - 2, y + 43);
+    ctx.quadraticCurveTo(x + v.w - 1, y + 35, x + v.w - 9, y + 35); // tail
     ctx.closePath(); ctx.fill();
-    // open passenger cabin (white gap) with grab-pole + centre pillar
-    ctx.fillStyle = '#eef1ee'; ctx.fillRect(x + 21, y + 18, v.w - 48, 15);
-    ctx.fillStyle = GD; ctx.fillRect(x + 21, y + 18, 3, 15);                   // front grab pole
-    ctx.fillStyle = G; ctx.fillRect(x + 21 + (v.w - 48) / 2, y + 18, 4, 15);   // centre pillar
-    ctx.fillStyle = G; ctx.fillRect(x + v.w - 27, y + 18, 6, 15);             // rear quarter panel
-    // windscreen + driver (front)
-    ctx.fillStyle = '#13456e'; ctx.fillRect(x + 5, y + 18, 14, 14);           // dark screen frame
-    ctx.fillStyle = '#cfe8f2'; ctx.fillRect(x + 6, y + 19, 12, 10);           // glass
-    ctx.fillStyle = '#3a2f26'; ctx.fillRect(x + 22, y + 19, 9, 13);           // driver
-    // --- khaki canopy: arched dome, sloping toward the back ---
+    ctx.fillStyle = G; ctx.fillRect(x + 5, y + 33, v.w - 10, 6);   // cabin sill the canopy sits on
+    // open passenger compartment (rear two-thirds) with centre + rear pillars
+    ctx.fillStyle = '#eef1ee'; ctx.fillRect(x + 27, y + 21, v.w - 35, 17);
+    ctx.fillStyle = G; ctx.fillRect(x + 27 + (v.w - 35) / 2 - 2, y + 21, 4, 17); // centre pillar
+    ctx.fillStyle = GD; ctx.fillRect(x + v.w - 10, y + 21, 4, 17);               // rear pillar
+    // front driver bay: quarter panel + windscreen + driver
+    ctx.fillStyle = G; ctx.fillRect(x + 4, y + 21, 23, 17);
+    ctx.fillStyle = '#13456e'; ctx.fillRect(x + 6, y + 22, 15, 13);            // screen frame
+    ctx.fillStyle = '#cfe8f2'; ctx.fillRect(x + 7, y + 23, 13, 10);           // glass
+    ctx.fillStyle = '#3a2f26'; ctx.fillRect(x + 23, y + 23, 5, 12);           // driver
+    // --- tall domed khaki soft-top canopy ---
     ctx.fillStyle = K;
     ctx.beginPath();
-    ctx.moveTo(x + 5, y + 17);
-    ctx.quadraticCurveTo(x + 7, y + 2, x + 28, y + 3);              // front rise
-    ctx.lineTo(x + v.w - 16, y + 5);                                // roof line
-    ctx.quadraticCurveTo(x + v.w - 3, y + 7, x + v.w - 6, y + 18);  // rounded rear
-    ctx.lineTo(x + 5, y + 17); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = KD; ctx.fillRect(x + 8, y + 14, v.w - 18, 3);             // canopy shadow lip
+    ctx.moveTo(x + 4, y + 22);
+    ctx.bezierCurveTo(x + 1, y + 1, x + v.w - 3, y + 1, x + v.w - 3, y + 22);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = KD; ctx.fillRect(x + 5, y + 19, v.w - 10, 3);             // shadow lip
+    ctx.strokeStyle = KD; ctx.lineWidth = 1;                                   // canopy ribs
+    for (let rx = x + 20; rx < x + v.w - 8; rx += 15) {
+      ctx.beginPath(); ctx.moveTo(rx, y + 20); ctx.quadraticCurveTo(rx + 3, y + 7, rx + 8, y + 4); ctx.stroke();
+    }
     // black front peak / sun visor
     ctx.fillStyle = '#1b1b1b';
     ctx.beginPath();
-    ctx.moveTo(x + 3, y + 15); ctx.lineTo(x + 8, y + 2);
-    ctx.lineTo(x + 19, y + 3); ctx.lineTo(x + 15, y + 15);
-    ctx.closePath(); ctx.fill();
-    // headlamp + amber indicator (front nose)
-    ctx.fillStyle = '#2a2a2a'; circle(x + 3, y + 28, 4);
-    ctx.fillStyle = '#f3c34a'; circle(x + 3, y + 28, 2.5);                    // headlamp
-    ctx.fillStyle = '#e67e22'; ctx.fillRect(x + 1, y + 33, 4, 3);            // indicator
+    ctx.moveTo(x + 2, y + 21); ctx.quadraticCurveTo(x + 2, y + 6, x + 17, y + 7);
+    ctx.lineTo(x + 13, y + 21); ctx.closePath(); ctx.fill();
+    // headlamp + amber indicator on the nose
+    ctx.fillStyle = '#2a2a2a'; circle(x + 2, y + 43, 4);
+    ctx.fillStyle = '#f3c34a'; circle(x + 2, y + 43, 2.4);
+    ctx.fillStyle = '#e67e22'; ctx.fillRect(x, y + 48, 4, 3);
   } else if (v.kind === 'qingqi') {
     ctx.fillStyle = '#1e272e'; ctx.fillRect(x + 4, y, v.w - 8, 14);            // canopy
     ctx.fillStyle = '#2980b9'; ctx.fillRect(x, y + 12, v.w, v.h - 26);
@@ -895,26 +973,94 @@ function drawVehicle(v) {
 function drawPlayer() {
   if (state === 'gameover') return;
   const x = px(player.x), y = Math.round(player.y);
-  if (iframes > 0 && Math.floor(iframes / 5) % 2 === 0) return;   // blink
-  const f = player.face;
+  const f = player.face;                                  // 1 right, -1 left
+  const t = performance.now();
+  const moving = player.onGround && Math.abs(player.vx) > 0.3;
+  const airborne = !player.onGround;
+  const flashHide = iframes > 0 && Math.floor(iframes / 5) % 2 === 0;
+
+  // ground shadow (skip while airborne) — drawn in world space, behind player
+  if (!airborne) {
+    ctx.save(); ctx.globalAlpha = 0.16; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(x + player.w / 2, y + player.h + 1, 12, 3, 0, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  if (flashHide) return;                                  // invuln blink
+
+  // walk/limb phase
+  const ph = player.anim;
+  const sw = moving ? Math.sin(ph) : 0;                   // stride swing
+  let legF, legB, armF, armB, bob;
+  if (moving) {
+    legF = sw * 4; legB = -sw * 4;
+    armF = -sw * 3; armB = sw * 3;
+    bob = -Math.abs(Math.cos(ph)) * 1.5;                 // rise on each stride
+  } else if (airborne) {
+    const up = player.vy < 0;
+    legF = up ? 3 : -3; legB = up ? -2 : 4;
+    armF = up ? -5 : 5; armB = up ? -3 : 3; bob = 0;
+  } else {
+    legF = legB = 0; armF = armB = 0;
+    bob = Math.sin(t / 450) * 1;                          // idle breathing
+  }
+
   ctx.save();
-  if (starT > 0) { ctx.globalAlpha = 0.92; }
-  // legs (run anim)
-  const stepA = player.onGround && Math.abs(player.vx) > 0.5 ? Math.floor(player.anim) % 2 : 0;
-  ctx.fillStyle = '#2c3a92';                                       // jeans
-  if (stepA === 0) { ctx.fillRect(x + 4, y + 30, 8, 14); ctx.fillRect(x + 14, y + 30, 8, 14); }
-  else { ctx.fillRect(x + 2, y + 30, 8, 14); ctx.fillRect(x + 16, y + 28, 8, 14); }
-  // body — white shirt
-  ctx.fillStyle = starT > 0 ? ('hsl(' + (performance.now() / 4 % 360) + ',90%,65%)') : '#f5f6fa';
-  ctx.fillRect(x + 3, y + 14, 20, 17);
-  // backpack (KU student!)
-  ctx.fillStyle = '#8e2433';
-  ctx.fillRect(f === 1 ? x - 2 : x + 18, y + 13, 10, 16);
+  if (starT > 0) ctx.globalAlpha = 0.95;
+  // mirror around centre so art is authored facing right
+  ctx.translate(x + player.w / 2, y); ctx.scale(f, 1); ctx.translate(-player.w / 2, 0);
+  const c = player.w / 2;                                 // local centre (13)
+
+  // palette
+  const skin = '#c68642', skinD = '#a96f31';
+  const shirt  = starT > 0 ? 'hsl(' + (t / 3 % 360) + ',85%,62%)' : '#eef2f7';
+  const shirtD = starT > 0 ? 'hsl(' + (t / 3 % 360) + ',70%,48%)' : '#ccd5df';
+  const jeans = '#2c3a92', jeansD = '#1f2a6e', shoe = '#23262c';
+  const hair = '#1b1e24', pack = '#9b2c33', packD = '#751f25', strap = '#5e1419';
+
+  // back arm (behind torso)
+  ctx.fillStyle = skinD; ctx.fillRect(c - 8 + armB, 16 + bob, 4, 10);
+  ctx.fillStyle = skin;  ctx.fillRect(c - 8 + armB, 24 + bob, 4, 3);   // hand
+
+  // backpack on the back (left when facing right)
+  ctx.fillStyle = packD; ctx.fillRect(c - 13, 14 + bob, 8, 18);
+  ctx.fillStyle = pack;  ctx.fillRect(c - 12, 15 + bob, 6, 15);
+  ctx.fillStyle = packD; ctx.fillRect(c - 11, 20 + bob, 4, 6);         // pocket
+  ctx.fillStyle = strap; ctx.fillRect(c - 5, 15 + bob, 2, 15);         // shoulder strap
+
+  // back leg
+  ctx.fillStyle = jeansD; ctx.fillRect(c - 3 + legB, 31 + bob, 5, 11);
+  ctx.fillStyle = shoe;   ctx.fillRect(c - 4 + legB, 41 + bob, 8, 3);
+  // front leg
+  ctx.fillStyle = jeans;  ctx.fillRect(c + 1 + legF, 31 + bob, 5, 11);
+  ctx.fillStyle = shoe;   ctx.fillRect(c + legF, 41 + bob, 8, 3);
+
+  // torso (shirt) with shading + collar
+  ctx.fillStyle = shirt;  ctx.fillRect(c - 7, 15 + bob, 15, 17);
+  ctx.fillStyle = shirtD; ctx.fillRect(c - 7, 15 + bob, 3, 17);        // side shade
+  ctx.fillStyle = shirtD; ctx.fillRect(c - 7, 28 + bob, 15, 4);        // hem shade
+  ctx.fillStyle = '#dbe2ea'; ctx.fillRect(c - 3, 15 + bob, 6, 3);      // collar
+
+  // front arm (over torso)
+  ctx.fillStyle = skin;  ctx.fillRect(c + 4 + armF, 16 + bob, 4, 10);
+  ctx.fillStyle = skinD; ctx.fillRect(c + 4 + armF, 24 + bob, 4, 3);   // hand
+
   // head
-  ctx.fillStyle = '#c68642'; ctx.fillRect(x + 5, y + 2, 16, 13);
-  ctx.fillStyle = '#1e272e'; ctx.fillRect(x + 4, y, 18, 5);        // hair
-  ctx.fillStyle = '#1e272e';                                        // eye
-  ctx.fillRect(f === 1 ? x + 16 : x + 7, y + 7, 3, 3);
+  const hy = bob;
+  ctx.fillStyle = skin;  ctx.fillRect(c - 6, 2 + hy, 13, 13);
+  ctx.fillStyle = skinD; ctx.fillRect(c - 6, 12 + hy, 13, 3);          // jaw shade
+  ctx.fillStyle = skin;  ctx.fillRect(c - 7, 7 + hy, 2, 4);            // ear
+  // hair
+  ctx.fillStyle = hair;
+  ctx.fillRect(c - 7, 0 + hy, 15, 5);
+  ctx.fillRect(c - 7, 0 + hy, 3, 8);                                   // back sideburn
+  ctx.fillRect(c + 5, 1 + hy, 3, 5);                                   // front fringe
+  // face (facing right)
+  ctx.fillStyle = '#1e272e';
+  ctx.fillRect(c + 2, 6 + hy, 3, 1);                                   // eyebrow
+  const blink = (t % 2800) < 120;
+  if (!blink) ctx.fillRect(c + 2, 8 + hy, 2, 3); else ctx.fillRect(c + 2, 9 + hy, 3, 1);
+  ctx.fillStyle = skinD; ctx.fillRect(c + 1, 12 + hy, 4, 1);           // mouth
+
   ctx.restore();
 }
 
@@ -1040,6 +1186,35 @@ function drawDecor(d, dark) {
       ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + Math.cos(a) * 70, fy + Math.sin(a) * 70); ctx.stroke();
     }
     ctx.beginPath(); ctx.moveTo(fx - 50, fy + 130); ctx.lineTo(fx, fy); ctx.lineTo(fx + 50, fy + 130); ctx.stroke();
+  } else if (d.kind === 'police') {
+    const gy = groundYAt(d.x);
+    const flip = Math.floor(performance.now() / 220) % 2 === 0;
+    // --- police mobile (parked, facing right) ---
+    const cw = 124, ch = 42, cy = gy - ch;
+    ctx.fillStyle = '#f4f6f7'; ctx.fillRect(x, cy + 14, cw, ch - 22);          // lower body
+    ctx.beginPath();                                                            // cabin
+    ctx.moveTo(x + 28, cy + 14); ctx.lineTo(x + 42, cy + 2);
+    ctx.lineTo(x + cw - 30, cy + 2); ctx.lineTo(x + cw - 18, cy + 14); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#152f4d'; ctx.fillRect(x, cy + 22, cw, 7);                 // navy stripe
+    ctx.fillStyle = '#bfe0f0'; ctx.fillRect(x + 34, cy + 5, 22, 9); ctx.fillRect(x + cw - 44, cy + 5, 22, 9); // windows
+    ctx.fillStyle = '#152f4d'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('POLICE', x + cw / 2, cy + 38); ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff3b0'; ctx.fillRect(x + cw - 3, cy + 16, 3, 6);         // front light
+    // flashing roof lightbar + glow
+    ctx.fillStyle = '#10131a'; ctx.fillRect(x + 44, cy - 4, 36, 5);            // bar base
+    ctx.fillStyle = flip ? '#ff2b2b' : '#3355ff'; ctx.fillRect(x + 46, cy - 8, 16, 6);
+    ctx.fillStyle = flip ? '#3355ff' : '#ff2b2b'; ctx.fillRect(x + 62, cy - 8, 16, 6);
+    ctx.globalAlpha = 0.32;
+    ctx.fillStyle = flip ? '#ff2b2b' : '#3355ff'; circle(x + 54, cy - 5, 22);
+    ctx.fillStyle = flip ? '#3355ff' : '#ff2b2b'; circle(x + 70, cy - 5, 22);
+    ctx.globalAlpha = 1;
+    wheel(x + 28, gy - 6, 10); wheel(x + cw - 28, gy - 6, 10);
+    // --- three constables ---
+    drawCop(x + 160, gy, 1);
+    drawCop(x + 192, gy, -1);
+    drawCop(x + 224, gy, 1);
+    // chai-paani request over the middle cop (raised higher)
+    speechBubble(x + 192, gy - 120, 'Sir chai paani?');
   } else if (d.kind === 'finish') {
     const gy = groundYAt(d.x);
     ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, gy - 170, 10, 170);
