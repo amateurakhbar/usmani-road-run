@@ -25,6 +25,27 @@ function loadSprite(key, src, opts) {
       for (let i = 0; i < d.length; i += 4) {
         if (d[i] >= th && d[i + 1] >= th && d[i + 2] >= th) d[i + 3] = 0;
       }
+      // scrub leftover border artifacts: any row/column whose opaque pixels are
+      // almost all near-white is a background line, not art — erase it
+      const nearWhite = i => d[i] >= 226 && d[i + 1] >= 226 && d[i + 2] >= 226;
+      for (let pxx = 0; pxx < oc.width; pxx++) {
+        let op = 0, nw = 0;
+        for (let py = 0; py < oc.height; py++) {
+          const i = (py * oc.width + pxx) * 4;
+          if (d[i + 3] > 16) { op++; if (nearWhite(i)) nw++; }
+        }
+        if (op > 0 && nw / op >= 0.85)
+          for (let py = 0; py < oc.height; py++) d[(py * oc.width + pxx) * 4 + 3] = 0;
+      }
+      for (let py = 0; py < oc.height; py++) {
+        let op = 0, nw = 0;
+        for (let pxx = 0; pxx < oc.width; pxx++) {
+          const i = (py * oc.width + pxx) * 4;
+          if (d[i + 3] > 16) { op++; if (nearWhite(i)) nw++; }
+        }
+        if (op > 0 && nw / op >= 0.85)
+          for (let pxx = 0; pxx < oc.width; pxx++) d[(py * oc.width + pxx) * 4 + 3] = 0;
+      }
       octx.putImageData(id, 0, 0);
     }
     // measure opaque content bounds (ignore sparse rows/cols = knockout specks)
