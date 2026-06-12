@@ -98,7 +98,7 @@ function loadSprite(key, src, opts) {
   img.src = src;
 }
 loadSprite('rickshaw', 'assets/rakh.png', { knockoutWhite: true });
-loadSprite('bike', 'assets/cd70.png', { knockoutWhite: true, flip: true });
+loadSprite('bike', 'assets/cd70.jpeg', { knockoutWhite: true, flip: true, threshold: 244 });
 
 // ---------- world constants ----------
 const GROUND_Y = 470;          // top of footpath where player stands
@@ -975,14 +975,14 @@ function drawVehicle(v) {
     const dx = x + v.w / 2 - (c.x + c.w / 2) * s;
     const dy = y + v.h - (c.y + c.h) * s + 1;
     ctx.drawImage(spr, dx, dy, dw, dh);
-    // rider seated over the bike (faces left)
-    const seatX = x + v.w / 2 + 4, seatY = y + v.h - dh * 0.42;
-    ctx.fillStyle = '#2c3e50'; ctx.fillRect(seatX - 5, seatY, 13, 13);          // torso
-    ctx.fillStyle = '#24527a'; ctx.fillRect(seatX - 9, seatY + 2, 6, 4);        // forward arm to bars
-    ctx.fillStyle = '#3a2f26'; ctx.fillRect(seatX + 5, seatY + 11, 5, 8);       // thigh
-    ctx.fillStyle = '#c8a06f'; ctx.fillRect(seatX - 4, seatY - 9, 9, 9);        // head
-    ctx.fillStyle = '#b22222'; ctx.fillRect(seatX - 5, seatY - 12, 11, 5);      // helmet
-    ctx.fillStyle = '#7a1818'; ctx.fillRect(seatX - 8, seatY - 10, 3, 3);       // helmet front (left)
+    // rider perched on the seat (faces left toward the handlebars)
+    const rx = x + v.w / 2 + 3, seatY = y + v.h - dh * 0.52;
+    ctx.fillStyle = '#3a2f26'; ctx.fillRect(rx + 2, seatY, 5, 10);              // thigh (forward+down)
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(rx - 5, seatY - 13, 12, 14);        // torso
+    ctx.fillStyle = '#24527a'; ctx.fillRect(rx - 11, seatY - 8, 7, 4);          // arm reaching to bars
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(rx - 4, seatY - 22, 9, 9);          // head
+    ctx.fillStyle = '#b22222'; ctx.fillRect(rx - 5, seatY - 25, 11, 5);         // helmet top
+    ctx.fillStyle = '#7a1818'; ctx.fillRect(rx - 9, seatY - 21, 4, 4);          // helmet visor (left)
   } else if (v.kind === 'bike') {
     // motorcycle facing left (fallback drawing)
     wheel(x + 12, y + v.h - 9, 10); wheel(x + v.w - 12, y + v.h - 9, 10);
