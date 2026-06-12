@@ -651,6 +651,12 @@ function drawSolid(s) {
 }
 
 function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+function wheel(cx, cy, r) {
+  ctx.fillStyle = '#161616'; circle(cx, cy, r);          // tyre
+  ctx.fillStyle = '#3a3f44'; circle(cx, cy, r * 0.55);   // rim
+  ctx.fillStyle = '#aab2b8'; circle(cx, cy, r * 0.32);   // hub
+  ctx.fillStyle = '#161616'; circle(cx, cy, 1.5);        // bolt
+}
 
 function drawTrenchesAndWires() {
   for (const wz of wires) {
@@ -717,15 +723,40 @@ function steam(x, y) {
 
 function drawVehicle(v) {
   const x = px(v.x), y = groundYAt(v.x + v.w / 2) - v.h;
-  if (v.kind === 'rickshaw' || v.kind === 'qingqi') {
-    const body = v.kind === 'rickshaw' ? '#27ae60' : '#2980b9';
+  if (v.kind === 'rickshaw') {
+    // Karachi green auto-rickshaw, facing left (direction of travel)
+    const G = '#56a567', GD = '#2f6b3d', K = '#9b9587', KD = '#6f6a5b';
+    // khaki canopy roof, rounded toward the back (right)
+    ctx.fillStyle = K; ctx.fillRect(x + 14, y + 2, v.w - 18, 11);
+    ctx.fillStyle = K; ctx.fillRect(x + v.w - 10, y + 5, 7, 9);                 // rounded rear lip
+    ctx.fillStyle = KD; ctx.fillRect(x + 14, y + 11, v.w - 14, 4);             // canopy shadow
+    ctx.fillStyle = '#1c1c1c'; ctx.fillRect(x + 10, y, 16, 5);                 // black front visor
+    // rounded green rear (passenger back)
+    ctx.fillStyle = G; ctx.fillRect(x + v.w - 26, y + 13, 24, v.h - 28);
+    ctx.fillStyle = GD; ctx.fillRect(x + v.w - 5, y + 18, 3, v.h - 34);        // rear edge shade
+    // open passenger cabin (white) with green centre pillar
+    ctx.fillStyle = '#f3f6f3'; ctx.fillRect(x + 18, y + 15, v.w - 46, 19);
+    ctx.fillStyle = G; ctx.fillRect(x + 18 + (v.w - 46) / 2 - 3, y + 15, 6, 19);
+    // lower green body
+    ctx.fillStyle = G; ctx.fillRect(x, y + 33, v.w, v.h - 41);
+    ctx.fillStyle = GD; ctx.fillRect(x, y + 33, v.w, 3);                       // body top trim
+    // front cowl + windscreen (left)
+    ctx.fillStyle = G; ctx.fillRect(x, y + 16, 17, 18);
+    ctx.fillStyle = '#cfe8f5'; ctx.fillRect(x + 2, y + 18, 12, 12);           // windscreen
+    ctx.fillStyle = '#3b2f25'; ctx.fillRect(x + 21, y + 18, 10, 15);          // driver
+    ctx.fillStyle = '#f4b740'; circle(x + 3, y + 30, 3);                      // amber headlight
+    ctx.fillStyle = GD; ctx.fillRect(x + 2, y + v.h - 16, 24, 6);             // front mudguard
+    // wheels — front + rear, black tyre with bright hub
+    wheel(x + 14, y + v.h - 7, 9);
+    wheel(x + v.w - 16, y + v.h - 7, 10);
+  } else if (v.kind === 'qingqi') {
     ctx.fillStyle = '#1e272e'; ctx.fillRect(x + 4, y, v.w - 8, 14);            // canopy
-    ctx.fillStyle = body; ctx.fillRect(x, y + 12, v.w, v.h - 26);
+    ctx.fillStyle = '#2980b9'; ctx.fillRect(x, y + 12, v.w, v.h - 26);
     ctx.fillStyle = '#f1c40f'; ctx.fillRect(x, y + 12, v.w, 5);                // trim
     ctx.fillStyle = '#aed6f1'; ctx.fillRect(x + 6, y + 16, 20, 14);            // windscreen
     ctx.fillStyle = '#5d4037'; ctx.fillRect(x + 30, y + 18, 12, 12);           // driver
-    ctx.fillStyle = '#222'; circle(x + 14, y + v.h - 8, 9); circle(x + v.w - 16, y + v.h - 8, 9);
-    if (v.kind === 'qingqi') { ctx.fillStyle = '#e74c3c'; ctx.fillRect(x + v.w - 26, y + 16, 22, 16); } // pillion box
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(x + v.w - 26, y + 16, 22, 16);     // pillion box
+    wheel(x + 14, y + v.h - 8, 9); wheel(x + v.w - 16, y + v.h - 8, 9);
   } else if (v.kind === 'car') {
     ctx.fillStyle = '#ecf0f1'; ctx.fillRect(x, y + 16, v.w, v.h - 28);
     ctx.fillRect(x + 24, y + 2, v.w - 48, 18);
