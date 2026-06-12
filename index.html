@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Usmani Road Run — Maskan to Gulshan Bridge</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #1a1423;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    max-width: 100vw; max-height: 100vh;
+    aspect-ratio: 16 / 9;
+    background: #87ceeb;
+    touch-action: none;
+  }
+  #touch { display: none; }
+  @media (pointer: coarse) { #touch { display: block; } }
+  body.force-touch #touch { display: block; }
+  .tbtn {
+    position: fixed; bottom: max(3vh, env(safe-area-inset-bottom));
+    width: 74px; height: 74px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.55);
+    background: rgba(30,30,45,.45);
+    color: #ffd32a;
+    font-size: 30px; font-weight: bold;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 10;
+  }
+  .tbtn:active { background: rgba(255,211,42,.35); }
+  #btnL { left: max(3vw, env(safe-area-inset-left)); }
+  #btnR { left: calc(max(3vw, env(safe-area-inset-left)) + 88px); }
+  #btnJ { right: max(3vw, env(safe-area-inset-right)); width: 86px; height: 86px; }
+  #rotate {
+    display: none;
+    position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,20,30,.85); color: #ffd32a;
+    font: bold 13px monospace; padding: 8px 14px; border-radius: 8px;
+    z-index: 20; pointer-events: none;
+  }
+  @media (pointer: coarse) and (orientation: portrait) { #rotate { display: block; } }
+</style>
+</head>
+<body>
+<canvas id="game" width="960" height="540"></canvas>
+<div id="touch">
+  <button class="tbtn" id="btnL" aria-label="left">&#9664;</button>
+  <button class="tbtn" id="btnR" aria-label="right">&#9654;</button>
+  <button class="tbtn" id="btnJ" aria-label="jump">&#9650;</button>
+</div>
+<div id="rotate">&#128241; Phone ghoomao &mdash; landscape mein zyada maza hai</div>
+<script src="game.js"></script>
+</body>
+</html>
