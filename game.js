@@ -6,8 +6,30 @@
 
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
-const W = 960, H = 540;
+const H = 540;
+let W = 960;                 // dynamic: follows the device aspect ratio
 ctx.imageSmoothingEnabled = false;
+
+// size the internal resolution to the screen so the game fills any device
+function fitCanvas() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const MIN_AR = 1.2, MAX_AR = 2.4;            // sane gameplay range
+  const ar = vw / vh;
+  const clamped = Math.min(MAX_AR, Math.max(MIN_AR, ar));
+  W = Math.round(H * clamped);
+  cv.width = W; cv.height = H;
+  if (ar >= MIN_AR && ar <= MAX_AR) {           // fill the screen exactly
+    cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+  } else if (ar > MAX_AR) {                     // ultra-wide: pillarbox
+    cv.style.height = vh + 'px'; cv.style.width = Math.round(vh * clamped) + 'px';
+  } else {                                      // portrait: letterbox
+    cv.style.width = vw + 'px'; cv.style.height = Math.round(vw / clamped) + 'px';
+  }
+  ctx.imageSmoothingEnabled = false;            // canvas resize resets ctx state
+}
+addEventListener('resize', fitCanvas);
+addEventListener('orientationchange', () => setTimeout(fitCanvas, 250));
+fitCanvas();
 
 // ---------- sprite images (real photos used as sprites) ----------
 const sprites = {};
@@ -1345,7 +1367,7 @@ function drawTitle() {
 }
 function drawSkylineTitle() {
   ctx.fillStyle = '#a8c8b8';
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < Math.ceil(W / 115) + 1; i++) {
     const hh = 60 + ((i * 67) % 80);
     ctx.fillRect(i * 115, H - 120 - hh, 90, hh + 120);
   }
