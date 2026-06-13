@@ -131,6 +131,17 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys[e.code] = false);
 
+// block iOS double-tap / pinch zoom — it desyncs the fixed canvas from the screen
+addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend'])
+  addEventListener(ev, e => e.preventDefault(), { passive: false });
+let lastTouchEnd = 0;
+addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 350) e.preventDefault();   // kill double-tap zoom
+  lastTouchEnd = now;
+}, { passive: false });
+
 // ---------- audio (tiny webaudio beeps) ----------
 let AC = null;
 function initAudio() {
@@ -305,7 +316,7 @@ function buildLevel() {
   addBldg(1160, 150, 200, 'MASTER ELECTRONICS', '#74b9ff', '#3a7bd5', { awning: '#e74c3c' });
   addBldg(1330, 165, 215, 'JANNAT RESTAURANT', '#f5b942', '#d99a1f', { sign: '#7a1010', signText: '#fff5d0', awning: '#b71540' });
   // open dining space next to Jannat (no building here) — outdoor plastic tables
-  decors.push({ kind: 'tables', x: 1596 });
+  decors.push({ kind: 'tables', x: 1490 });
   addBldg(1680, 200, 240, 'MASKAN VENUE', '#fde3a7', '#f5b041');
   decors.push({ kind: 'kepole', x: 1640, spark: false });
   addBldg(1910, 140, 170, 'Y MEN SALON', '#e74c3c', '#b03226', { sign: '#ffffff', signText: '#c0392b', awning: '#2c3e50' });
@@ -415,7 +426,7 @@ function buildLevel() {
   addBldg(800, 158, 210, 'DARBAR', '#ffd54a', '#e6bb2e', { sign: '#7a1f1f', signText: '#7a1f1f', awning: '#b71540' });
   decors.push({ kind: 'masjid', x: 6510 });                      // Akbar Masjid (اکبر مسجد) + speaker
   decors.push({ kind: 'fixit', x: 6720 });                       // Fixit free-food stall, just before Disco Bakery
-  decors.push({ kind: 'desibbq', x: 1500 });                     // Jannat's desi BBQ grill out front
+  decors.push({ kind: 'desibbq', x: 1370 });                     // Jannat's desi BBQ grill out front
   decors.push({ kind: 'chaiwala', x: 3030 });                    // chai wala by the chai power-up
   decors.push({ kind: 'billboard', x: 3560, lines: ['9/10 PEOPLE SAY', 'KARACHI LOVES SHAN', '(the masala, not the actor)'], bg: '#fff8ec', fg: '#c0392b' });
   decors.push({ kind: 'billboard', x: 9240, lines: ['BYKEA KARO'], bg: '#0aa54f', fg: '#ffffff' });
@@ -746,15 +757,38 @@ function stepRide() {
 const isDark = () => state === 'play' && shedT >= 1440;        // lights out
 const isFlicker = () => state === 'play' && shedT >= 1320 && shedT < 1440 && (shedT % 14 < 5);
 
+// day fades to night over the first 100 seconds of a run
+function nightFactor() {
+  if (state === 'title' || !tStart) return 0;
+  const el = ((tEnd || performance.now()) - tStart) / 1000;
+  return Math.min(1, Math.max(0, el / 100));
+}
+function lerpColor(a, b, f) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const r = ((pa >> 16) & 255) + ((((pb >> 16) & 255) - ((pa >> 16) & 255)) * f);
+  const g = ((pa >> 8) & 255) + ((((pb >> 8) & 255) - ((pa >> 8) & 255)) * f);
+  const bl = (pa & 255) + (((pb & 255) - (pa & 255)) * f);
+  return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (bl | 0) + ')';
+}
+
 function px(x) { return Math.round(x - cam.x); }
 
 function draw() {
-  // sky
-  const dark = isDark() || isFlicker();
+  // sky: day -> dusk -> night over the run; load shedding stays its own darkness
+  const nf = nightFactor();
+  const shed = isDark() || isFlicker();
+  const dark = shed || nf > 0.55;
   const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-  if (dark) { skyGrad.addColorStop(0, '#0d1030'); skyGrad.addColorStop(1, '#2a2547'); }
-  else { skyGrad.addColorStop(0, '#6fb7e8'); skyGrad.addColorStop(1, '#cfe8d9'); }
+  if (shed) { skyGrad.addColorStop(0, '#0d1030'); skyGrad.addColorStop(1, '#2a2547'); }
+  else {
+    skyGrad.addColorStop(0, lerpColor('#6fb7e8', '#0e1233', nf));
+    skyGrad.addColorStop(1, lerpColor('#cfe8d9', '#2b2148', nf));
+  }
   ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, H);
+  if (nf > 0.6 && state !== 'title') {                          // stars come out
+    ctx.fillStyle = 'rgba(220,228,255,' + (0.7 * (nf - 0.6) / 0.4).toFixed(2) + ')';
+    for (let i = 0; i < 24; i++) ctx.fillRect((i * 167 + 23) % W, (i * 59) % 180 + 8, 2, 2);
+  }
 
   if (state === 'title') { drawTitle(); return; }
   if (state === 'credits') { drawCredits(); return; }
@@ -1253,6 +1287,9 @@ function drawVehicle(v) {
     const dx = x + v.w / 2 - (c.x + c.w / 2) * s;          // centre content over the box
     const dy = y + v.h - (c.y + c.h) * s + 1;             // content bottom on the ground line
     ctx.drawImage(spr, dx, dy, dw, dh);
+    // driver up front so it isn't a ghost rickshaw
+    ctx.fillStyle = '#3a2f26'; ctx.fillRect(dx + dw * 0.30, dy + dh * 0.30, dh * 0.13, dh * 0.13);  // head
+    ctx.fillStyle = '#5d4a3a'; ctx.fillRect(dx + dw * 0.285, dy + dh * 0.42, dh * 0.17, dh * 0.16); // torso
   } else if (v.kind === 'rickshaw') {
     // fallback drawn sprite (used until assets/rickshaw.png is present)
     const G = '#4f9d5f', GD = '#2f6e3d', K = '#9a917c', KD = '#6f6857';
@@ -1433,7 +1470,7 @@ function drawVehicle(v) {
     const hy = y + v.h - 20;
     if (on) {
       ctx.fillStyle = '#fff6c0'; circle(x + 2, hy, 3);
-      ctx.globalAlpha = (isDark() || isFlicker()) ? 0.30 : 0.10;
+      ctx.globalAlpha = 0.08 + 0.30 * Math.max(nightFactor(), (isDark() || isFlicker()) ? 1 : 0);
       ctx.fillStyle = '#fff3a8';
       ctx.beginPath(); ctx.moveTo(x + 2, hy - 3); ctx.lineTo(x - 26, hy - 10); ctx.lineTo(x - 26, hy + 10); ctx.closePath(); ctx.fill();
       ctx.globalAlpha = 1;
@@ -1555,15 +1592,24 @@ function drawDecor(d, dark) {
     ctx.fillStyle = '#5d4037'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
     ctx.fillText('UNIVERSITY OF KARACHI', x + 91, GROUND_Y - 152);
     ctx.fillStyle = '#3b6b48'; ctx.fillText('MASKAN GATE', x + 91, GROUND_Y - 130);
+    // gate guard: blue wardi, moustache, danda
+    const ggx = x + 196;
+    ctx.fillStyle = '#1d3f8f'; ctx.fillRect(ggx - 5, GROUND_Y - 16, 5, 16); ctx.fillRect(ggx + 1, GROUND_Y - 16, 5, 16);
+    ctx.fillStyle = '#16306e'; ctx.fillRect(ggx - 6, GROUND_Y - 33, 13, 18);
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(ggx - 4, GROUND_Y - 42, 9, 10);
+    ctx.fillStyle = '#10254f'; ctx.fillRect(ggx - 5, GROUND_Y - 45, 11, 4);          // cap
+    ctx.fillStyle = '#1e1e1e'; ctx.fillRect(ggx - 3, GROUND_Y - 36, 7, 2);           // moustache
+    ctx.fillStyle = '#6d4c41'; ctx.fillRect(ggx + 7, GROUND_Y - 30, 3, 22);          // danda
   } else if (d.kind === 'lamp') {
     const lgy = groundYAt(d.x);
     ctx.fillStyle = '#444c55'; ctx.fillRect(x, lgy - 130, 6, 130);
     ctx.fillRect(x, lgy - 130, 26, 5);
     const off = isDark() || isFlicker();
+    const lit = !off && nightFactor() > 0.5;                    // lamps switch on at dusk
     const col = d.warm ? '#ffcf87' : '#eaf4ff';                 // warm after Disco, white before
-    ctx.fillStyle = off ? '#333' : col;
+    ctx.fillStyle = off ? '#333' : (lit ? col : '#8a93a0');
     ctx.fillRect(x + 22, lgy - 128, 10, 8);
-    if (!off) { ctx.globalAlpha = 0.16; ctx.fillStyle = col; circle(x + 27, lgy - 122, 17); ctx.globalAlpha = 1; }
+    if (lit) { ctx.globalAlpha = 0.14 + 0.14 * nightFactor(); ctx.fillStyle = col; circle(x + 27, lgy - 122, 19); ctx.globalAlpha = 1; }
   } else if (d.kind === 'kepole') {
     ctx.fillStyle = '#5d4037'; ctx.fillRect(x, GROUND_Y - 160, 8, 160);
     ctx.fillRect(x - 22, GROUND_Y - 152, 52, 4);
@@ -1752,16 +1798,34 @@ function drawDecor(d, dark) {
     circle(x - 14, GROUND_Y - 7, 8); circle(x - 26, GROUND_Y - 5, 6); circle(x - 7, GROUND_Y - 4, 5);
     ctx.fillStyle = '#57606f'; ctx.fillRect(x - 30, GROUND_Y - 3, 30, 3);
   } else if (d.kind === 'tables') {
-    for (let i = 0; i < 2; i++) {
-      const tx = x + i * 46;
-      ctx.fillStyle = '#f4f6f6'; ctx.beginPath(); ctx.ellipse(tx + 12, GROUND_Y - 26, 14, 5, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = '#d8dcdc'; ctx.fillRect(tx + 10, GROUND_Y - 24, 4, 24);
+    // Jannat outdoor seating: GENTS AREA in the open, FAMILY AREA behind a cloth fence
+    const drawTable = tx => {
+      ctx.fillStyle = '#f4f6f6'; ctx.beginPath(); ctx.ellipse(tx + 11, GROUND_Y - 26, 12, 5, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#d8dcdc'; ctx.fillRect(tx + 9, GROUND_Y - 24, 4, 24);
       ctx.fillStyle = '#f4f6f6';
-      ctx.fillRect(tx - 7, GROUND_Y - 16, 8, 4); ctx.fillRect(tx - 7, GROUND_Y - 12, 3, 12);   // chair L
-      ctx.fillRect(tx + 25, GROUND_Y - 16, 8, 4); ctx.fillRect(tx + 30, GROUND_Y - 12, 3, 12); // chair R
-    }
-    drawPedestrian(x - 14, GROUND_Y, '#16607a', 0, true, 'man');                   // diners
-    drawPedestrian(x + 66, GROUND_Y, '#6c3483', 0, true, 'floral');
+      ctx.fillRect(tx - 6, GROUND_Y - 16, 7, 3); ctx.fillRect(tx - 6, GROUND_Y - 13, 3, 13);   // chairs
+      ctx.fillRect(tx + 21, GROUND_Y - 16, 7, 3); ctx.fillRect(tx + 25, GROUND_Y - 13, 3, 13);
+    };
+    // gents area — open air
+    drawTable(x); drawTable(x + 38);
+    drawPedestrian(x + 20, GROUND_Y, '#16607a', 0, true, 'man');
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(x - 8, GROUND_Y - 80, 66, 12);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('GENTS AREA', x + 25, GROUND_Y - 71);
+    // family area — three tables behind a qanat (cloth fence)
+    const fx = x + 86;
+    drawTable(fx + 8); drawTable(fx + 44); drawTable(fx + 80);
+    drawPedestrian(fx + 28, GROUND_Y, '#6c3483', 0, true, 'floral');
+    drawPedestrian(fx + 64, GROUND_Y, '#202028', 0, true, 'burqa');
+    ctx.globalAlpha = 0.88; ctx.fillStyle = '#b71540';            // cloth panels
+    ctx.fillRect(fx - 4, GROUND_Y - 34, 112, 28);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#7a0f2b';                                     // fence posts
+    for (let i = 0; i <= 4; i++) ctx.fillRect(fx - 6 + i * 28, GROUND_Y - 40, 4, 40);
+    ctx.fillStyle = '#fff'; ctx.fillRect(fx + 14, GROUND_Y - 30, 76, 11);
+    ctx.fillStyle = '#b71540'; ctx.font = 'bold 7px monospace';
+    ctx.fillText('FAMILY AREA', fx + 52, GROUND_Y - 22);
+    ctx.textAlign = 'left';
   } else if (d.kind === 'chaiwala') {
     ctx.fillStyle = '#7a4a21'; ctx.fillRect(x, GROUND_Y - 34, 56, 34);             // counter
     ctx.fillStyle = '#925a2b'; ctx.fillRect(x - 3, GROUND_Y - 40, 62, 8);
@@ -1996,6 +2060,17 @@ function drawHUD() {
     ctx.fillText(toast.text, W / 2, 99); ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
   }
+  // goal hint at the very start of the run
+  if (state === 'play' && player.x < 720) {
+    ctx.fillStyle = 'rgba(20,20,30,.72)';
+    ctx.fillRect(W / 2 - 255, 118, 510, 42);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd32a'; ctx.font = 'bold 13px monospace';
+    ctx.fillText('GOAL: dodge cars, potholes & wires — jump with ↑ / SPACE', W / 2, 135);
+    ctx.fillStyle = '#cfd8e8';
+    ctx.fillText('Reach Gulshan Bridge — your Bykea is waiting', W / 2, 152);
+    ctx.textAlign = 'left';
+  }
   // power timers
   if (boostT > 0) { ctx.fillStyle = '#f39c12'; ctx.fillRect(24, 50, boostT / 480 * 120, 8); }
   if (starT > 0) { ctx.fillStyle = 'hsl(' + (performance.now() / 4 % 360) + ',90%,60%)'; ctx.fillRect(24, 62, starT / 420 * 120, 8); }
@@ -2116,12 +2191,13 @@ function drawCredits() {
     ['', ''],
     ['Shukriya for playing', 'head'],
   ];
+  const SY = H - 112;                                          // top of the night-ride strip
   const total = lines.length * 34;
-  const yStart = Math.max(H / 2 - total / 2, H - creditsT * 0.55);
+  const yStart = H - ((creditsT * 0.55) % (total + H + 60));   // credits loop forever
   ctx.textAlign = 'center';
   for (let i = 0; i < lines.length; i++) {
     const ly = yStart + i * 34;
-    if (ly < -20 || ly > H + 20) continue;
+    if (ly < -20 || ly > SY - 6) continue;
     const st = lines[i][1];
     if (st === 'title') { ctx.font = 'bold 34px monospace'; ctx.fillStyle = '#ffd32a'; }
     else if (st === 'head') { ctx.font = 'bold 20px monospace'; ctx.fillStyle = '#7fe3a8'; }
@@ -2130,15 +2206,40 @@ function drawCredits() {
     else { ctx.font = '17px monospace'; ctx.fillStyle = '#e8ecf4'; }
     ctx.fillText(lines[i][0], W / 2, ly);
   }
-  // the ride home loops along the bottom
-  const bx2 = ((creditsT * 2.2) % (W + 260)) - 130;
-  ctx.fillStyle = '#1a1530'; ctx.fillRect(0, H - 34, W, 34);
-  ctx.fillStyle = '#3c3654'; ctx.fillRect(0, H - 34, W, 3);
-  drawWaitingBike(bx2, H - 8, true, true);
+  // night ride down Shahrah-e-Faisal: long, straight, quiet — just street lights
+  ctx.fillStyle = '#0b0d20'; ctx.fillRect(0, SY, W, 112);
+  ctx.fillStyle = '#14172e'; ctx.fillRect(0, SY, W, 4);
+  ctx.fillStyle = '#23263d'; ctx.fillRect(0, H - 46, W, 46);     // road
+  const scroll = creditsT * 3.2;
+  ctx.fillStyle = '#d9d090';
+  for (let dx2 = -(scroll % 90); dx2 < W; dx2 += 90) ctx.fillRect(dx2, H - 24, 34, 4);
+  for (let lx = -(scroll % 240); lx < W + 60; lx += 240) {       // gliding street lights
+    ctx.fillStyle = '#39405c'; ctx.fillRect(lx, H - 110, 5, 64);
+    ctx.fillRect(lx, H - 110, 22, 4);
+    ctx.fillStyle = '#ffcf87'; ctx.fillRect(lx + 18, H - 108, 8, 6);
+    ctx.globalAlpha = 0.13; circle(lx + 22, H - 100, 26); ctx.globalAlpha = 1;
+  }
+  const gb = W + 240 - ((scroll * 0.9) % (W * 3 + 480));          // overhead board drifts by
+  if (gb > -260 && gb < W + 40) {
+    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(gb, SY + 12, 220, 26);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gb, SY + 12, 220, 26);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace';
+    ctx.fillText('SHAHRAH-E-FAISAL', gb + 110, SY + 30);
+  }
+  const carP = (creditsT * 4.6) % (W * 4 + 800);                  // a rare car, nothing more
+  if (carP < W + 200) {
+    const cx2 = W + 100 - carP;
+    ctx.fillStyle = '#161a2c'; ctx.fillRect(cx2, H - 38, 56, 14); ctx.fillRect(cx2 + 12, H - 48, 30, 12);
+    ctx.fillStyle = '#fff6c0'; circle(cx2 + 2, H - 32, 2.5);
+    ctx.globalAlpha = 0.18; ctx.fillStyle = '#fff3a8';
+    ctx.beginPath(); ctx.moveTo(cx2, H - 34); ctx.lineTo(cx2 - 34, H - 40); ctx.lineTo(cx2 - 34, H - 26); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  drawWaitingBike(W * 0.30, H - 12, true, Math.floor(creditsT / 6) % 3 === 0);  // steady cruise
   // restart hint
   if (Math.floor(t / 600) % 2 === 0) {
     ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#ffd32a';
-    ctx.fillText('press R  /  tap to restart', W / 2, H - 48);
+    ctx.fillText('press R  /  tap to restart', W / 2, SY - 10);
   }
   ctx.textAlign = 'left';
 }
