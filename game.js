@@ -151,6 +151,7 @@ const sfx = {
   stomp: () => tone(200, 0.1, 'square', 0.07, 0, 90),
   win:   () => { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.16, 'square', 0.07, i * 0.13)); },
   fall:  () => tone(500, 0.5, 'square', 0.07, 0, 80),
+  toll:  () => tone(360, 0.12, 'square', 0.05, 0, 200),
 };
 
 // ---------- music (original 8-bit chiptune, 90s Karachi pop flavor) ----------
@@ -363,6 +364,18 @@ function buildLevel() {
   coinRow(12340, BRIDGE_Y - 70, 5, 40);
   decors.push({ kind: 'finish', x: FINISH_X });
 
+  // --- Karachi street life ---
+  addBldg(800, 158, 210, 'DARBAR', '#ffd54a', '#e6bb2e', { sign: '#7a1f1f', signText: '#7a1f1f', awning: '#b71540' });
+  decors.push({ kind: 'masjid', x: 6510 });                      // Akbar Masjid (اکبر مسجد) + speaker
+  decors.push({ kind: 'fixit', x: 1290 });                       // Fixit free-food stall + queue
+  decors.push({ kind: 'rollstall', x: 4980 });                   // Hot N Spicy rolls
+  decors.push({ kind: 'flowerseller', x: 7140 });               // rose seller at Disco signal
+  decors.push({ kind: 'beggar', x: 2760 });                     // "kuch dedo?" (1 of 2)
+  decors.push({ kind: 'beggar', x: 8650 });                     // "kuch dedo?" (2 of 2)
+  const peds = [680, 1740, 2520, 3450, 4650, 5720, 7620, 8520, 11200];
+  const pedTints = ['#34495e', '#7f8c8d', '#16607a', '#5b3a29', '#3d6b4a', '#6c3483'];
+  peds.forEach((pxx, i) => decors.push({ kind: 'pedestrian', x: pxx, base: pxx, dir: i % 2 ? 1 : -1, tint: pedTints[i % pedTints.length] }));
+
   // streetlights along the whole road
   for (let x = 500; x < LEN - 300; x += 420) decors.push({ kind: 'lamp', x });
 }
@@ -374,6 +387,7 @@ let paused = false;
 let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, toast, deathX;
 let iceCount = 0, lastIceX = -99999;
 let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
+let policeTollLeft = 20, policeTollCd = 0, policeTollDone = 0;   // chai-paani vasooli at the bridge
 
 function recordCheat(dir) {
   cheatSeq.push(dir);
@@ -396,6 +410,7 @@ function startGame() {
   toast = { text: 'MASKAN CHOWRANGI', t: 150 };
   iceCount = 0; lastIceX = -99999;
   godMode = false; cheatSeq = [];     // cheat lasts one run only
+  policeTollLeft = 20; policeTollCd = 0; policeTollDone = 0;
   tStart = performance.now(); tEnd = 0;
   coinsAll.forEach(c => c.taken = false);
   powerups.forEach(p => p.taken = false);
@@ -557,6 +572,22 @@ function step() {
   if (iframes > 0) iframes--;
   if (boostT > 0) boostT--;
   if (starT > 0) starT--;
+
+  // police chai-paani vasooli: standing by the cops drains up to 20 rupees
+  if (player.x > 12640 && player.x < 12824 && policeTollLeft > 0 && rupees > 0) {
+    if (++policeTollCd >= 7) {
+      policeTollCd = 0; rupees--; policeTollLeft--; policeTollDone++;
+      sfx.toll();
+      toast = { text: 'Chai paani... -1 Rs', t: 60 };
+    }
+  }
+
+  // pedestrians shuffle along the footpath
+  for (const d of decors) if (d.kind === 'pedestrian') {
+    d.x += d.dir * 0.35;
+    if (d.x > d.base + 130) d.dir = -1;
+    else if (d.x < d.base - 130) d.dir = 1;
+  }
 
   // ice cream wala jingle: louder as the cart gets closer, fades as it passes
   if (AC && iceGain) {
@@ -792,6 +823,17 @@ function speechBubble(cx, by, text) {
   ctx.beginPath(); ctx.moveTo(cx - 6, by + bh); ctx.lineTo(cx - 2, by + bh + 9); ctx.lineTo(cx + 4, by + bh); ctx.stroke();
   ctx.fillStyle = '#1e272e'; ctx.textAlign = 'center';
   ctx.fillText(text, cx, by + bh / 2 + 5); ctx.textAlign = 'left';
+}
+function drawPedestrian(cx, gy, shirt, ph, idle) {
+  // Karachi pedestrian in shalwar kameez
+  const sw = idle ? 0 : Math.sin(ph) * 2.5;
+  ctx.fillStyle = '#dcdcd2';                                  // shalwar (legs)
+  ctx.fillRect(cx - 5 + sw, gy - 16, 5, 16);
+  ctx.fillRect(cx + 1 - sw, gy - 16, 5, 16);
+  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(cx - 6 + sw, gy - 2, 6, 2); ctx.fillRect(cx + sw, gy - 2, 6, 2); // chappals
+  ctx.fillStyle = shirt; ctx.fillRect(cx - 6, gy - 31, 13, 19);   // kameez (long shirt)
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 40, 8, 9); // head
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 5, gy - 42, 10, 3); // hair/cap
 }
 function wheel(cx, cy, r) {
   ctx.fillStyle = '#161616'; circle(cx, cy, r);          // tyre
@@ -1302,6 +1344,67 @@ function drawDecor(d, dark) {
     drawCop(x + 224, gy, 1);
     // chai-paani request over the middle cop (raised higher)
     speechBubble(x + 192, gy - 120, 'Sir chai paani?');
+  } else if (d.kind === 'masjid') {
+    const w = 185, top = GROUND_Y - 250;
+    ctx.fillStyle = '#1f7a4d'; ctx.fillRect(x, top + 38, w, 250 - 38);          // body
+    ctx.fillStyle = '#17633e'; ctx.fillRect(x, top + 38, w, 7);
+    // minarets (reach the ground)
+    for (const mx of [x + 12, x + w - 24]) {
+      ctx.fillStyle = '#26935c'; ctx.fillRect(mx, top - 30, 12, 280);
+      ctx.fillStyle = '#2e9e66'; ctx.beginPath(); ctx.arc(mx + 6, top - 30, 8, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f1c40f'; ctx.fillRect(mx + 4, top - 44, 4, 11);
+    }
+    // central dome + finial
+    ctx.fillStyle = '#2e9e66'; ctx.beginPath(); ctx.arc(x + w / 2, top + 48, 46, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#f1c40f'; ctx.fillRect(x + w / 2 - 2, top - 6, 4, 18); circle(x + w / 2, top - 8, 5);
+    // arched windows
+    ctx.fillStyle = '#cdeedd';
+    for (let i = 0; i < 3; i++) { const ax = x + 42 + i * 42; ctx.fillRect(ax, GROUND_Y - 80, 24, 50); ctx.beginPath(); ctx.arc(ax + 12, GROUND_Y - 80, 12, Math.PI, 0); ctx.fill(); }
+    // loudspeaker on the right minaret + sound waves
+    const spx = x + w - 24 + 6;
+    ctx.fillStyle = '#3a3a3a'; ctx.fillRect(spx - 2, top - 18, 4, 6);
+    ctx.fillStyle = '#888'; ctx.beginPath(); ctx.moveTo(spx, top - 21); ctx.lineTo(spx + 16, top - 27); ctx.lineTo(spx + 16, top - 9); ctx.lineTo(spx, top - 15); ctx.closePath(); ctx.fill();
+    if (Math.floor(performance.now() / 450) % 2 === 0) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(spx + 18, top - 18, 7, -0.8, 0.8); ctx.stroke(); ctx.beginPath(); ctx.arc(spx + 18, top - 18, 12, -0.7, 0.7); ctx.stroke(); }
+    // Urdu name plate: اکبر مسجد
+    ctx.fillStyle = '#0b3d26'; ctx.fillRect(x + w / 2 - 62, top + 8, 124, 26);
+    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('اکبر مسجد', x + w / 2, top + 27); ctx.textAlign = 'left';
+  } else if (d.kind === 'fixit') {
+    ctx.fillStyle = '#16a085'; ctx.fillRect(x, GROUND_Y - 66, 72, 66);          // stall
+    ctx.fillStyle = '#1abc9c'; ctx.fillRect(x - 4, GROUND_Y - 74, 80, 12);      // counter
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('FIXIT', x + 36, GROUND_Y - 50);
+    ctx.font = '7px monospace'; ctx.fillText('FREE FOOD', x + 36, GROUND_Y - 40);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#555'; ctx.fillRect(x + 18, GROUND_Y - 30, 36, 16);        // degh (pot)
+    ctx.fillStyle = '#888'; ctx.fillRect(x + 16, GROUND_Y - 33, 40, 4);
+    // queue of needy people (non-interactive)
+    const qc = ['#8e44ad', '#c0392b', '#2980b9', '#d35400', '#27ae60'];
+    for (let i = 0; i < 5; i++) drawPedestrian(x + 90 + i * 19, GROUND_Y, qc[i], 0, true);
+  } else if (d.kind === 'rollstall') {
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(x, GROUND_Y - 62, 84, 62);
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(x - 4, GROUND_Y - 72, 92, 12);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('HOT N SPICY', x + 42, GROUND_Y - 50);
+    ctx.fillStyle = '#ffd700'; ctx.font = '8px monospace'; ctx.fillText('ROLLS', x + 42, GROUND_Y - 39);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#2c2c2c'; ctx.fillRect(x + 10, GROUND_Y - 30, 64, 8);      // griddle
+    ctx.fillStyle = '#e67e22'; ctx.fillRect(x + 16, GROUND_Y - 34, 12, 5); ctx.fillRect(x + 34, GROUND_Y - 34, 12, 5); ctx.fillRect(x + 52, GROUND_Y - 34, 12, 5);
+    drawPedestrian(x + 94, GROUND_Y, '#2c3e50', 0, true);
+  } else if (d.kind === 'beggar') {
+    ctx.fillStyle = '#6d5a44'; ctx.fillRect(x - 9, GROUND_Y - 15, 19, 15);      // folded legs
+    ctx.fillStyle = '#52442f'; ctx.fillRect(x - 8, GROUND_Y - 27, 15, 13);      // ragged torso
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(x - 5, GROUND_Y - 37, 9, 10);       // head
+    ctx.fillStyle = '#3a2f26'; ctx.fillRect(x - 6, GROUND_Y - 39, 11, 4);       // hair
+    ctx.fillStyle = '#999'; ctx.beginPath(); ctx.ellipse(x + 13, GROUND_Y - 12, 7, 3, 0, 0, 7); ctx.fill(); // bowl
+    speechBubble(x, GROUND_Y - 82, 'kuch dedo?');
+  } else if (d.kind === 'flowerseller') {
+    drawPedestrian(x, GROUND_Y, '#8e44ad', performance.now() / 260, false);
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(x + 6, GROUND_Y - 26, 2, 12);       // stems
+    for (let i = 0; i < 5; i++) { ctx.fillStyle = '#e84393'; circle(x + 3 + i * 3, GROUND_Y - 28 - (i % 2) * 3, 3); }
+    speechBubble(x, GROUND_Y - 80, 'flower lelein?');
+  } else if (d.kind === 'pedestrian') {
+    drawPedestrian(x, GROUND_Y, d.tint, performance.now() / 150 + d.base, false);
   } else if (d.kind === 'finish') {
     const gy = groundYAt(d.x);
     ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, gy - 170, 10, 170);
