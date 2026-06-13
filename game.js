@@ -186,12 +186,12 @@ let endSeeked = false;
 endMusic.addEventListener('loadedmetadata', () => { try { endMusic.currentTime = 48; endSeeked = true; } catch (e) {} });
 endMusic.addEventListener('seeked', () => { endSeeked = true; });
 
-function playMeow() {                                    // first 2 seconds only, loud
+function playMeow() {                                    // first 2.5 seconds only, loud
   try {
     meowAud.currentTime = 0;
     const p = meowAud.play();
     if (p) p.catch(() => sfx.meow());
-    setTimeout(() => { try { meowAud.pause(); } catch (e) {} }, 2000);
+    setTimeout(() => { try { meowAud.pause(); } catch (e) {} }, 2500);
   } catch (e) { sfx.meow(); }
 }
 // route background music by game state: music.mp3 in play, musicend.mp3 (from 0:48) in credits
