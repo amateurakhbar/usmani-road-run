@@ -334,12 +334,11 @@ function buildLevel() {
   coinArc(3140, GROUND_Y - 60, 6);
   addBldg(3340, 180, 220, 'HBL', '#dcdde1', '#aab0b6', { signText: '#0b6e4f' });
   addBldg(3540, 150, 190, 'AATA CHAKKI', '#e8d6b3', '#cbb88a', { awning: '#9b59b6' });
-  trenches.push({ x: 3740, w: 90 });   // first open manhole!
+  trenches.push({ x: 3740, w: 45, label: 'POTHOLE' });   // first open manhole!
   decors.push({ kind: 'manholesign', x: 3700 });
   addBldg(3860, 130, 170, 'JUICE CORNER', '#fdcb6e', '#e1a32a', { awning: '#16a085' });
   powerups.push({ x: 3100, y: GROUND_Y - 150, kind: 'chai', taken: false });
   coinRow(2880, GROUND_Y - 140, 5);
-  banners.push({ x: 1800, text: 'GRAND SALE — 50% OFF' });
 
   // --- Zone C: Food Street (Block 4) ---
   banners.push({ x: 4100, text: 'GULSHAN FOOD STREET' });
@@ -355,8 +354,8 @@ function buildLevel() {
   solids.push({ x: 5380, y: GROUND_Y - 50, w: 150, h: 50, kind: 'suzuki' });   // fruit pickup = platform
   coinArc(5340, GROUND_Y - 70, 6);
   addBldg(5590, 170, 210, 'BBQ CORNER', '#d63031', '#a82324', { awning: '#f39c12' });
-  addBldg(5780, 160, 190, 'UNITED BAKERY', '#81ecec', '#00cec9', { awning: '#e84393' });
-  trenches.push({ x: 6000, w: 100 });  // dug-up gas line
+  addBldg(5780, 160, 190, 'UNITED BAKERY', '#ffd54a', '#e6bb2e', { awning: '#e84393' });
+  trenches.push({ x: 6000, w: 50, label: 'POTHOLE' });  // dug-up gas line
   decors.push({ kind: 'cones', x: 5950 });
   addBldg(6160, 180, 220, 'KARACHI BROAST', '#f8a5c2', '#f78fb3', { awning: '#218c5c' });
   addBldg(6360, 150, 180, 'PAAN & COLD CORNER', '#6ab04c', '#4a8b34', { awning: '#e74c3c' });
@@ -387,23 +386,23 @@ function buildLevel() {
   // --- Zone E: Construction (the gauntlet) ---
   decors.push({ kind: 'kmcsign', x: 8740 });
   solids.push({ x: 8900, y: GROUND_Y - 40, w: 70, h: 40, kind: 'barrier' });
-  trenches.push({ x: 9030, w: 110 });
+  trenches.push({ x: 9030, w: 55 });
   decors.push({ kind: 'cones', x: 8990 });
   solids.push({ x: 9200, y: GROUND_Y - 40, w: 70, h: 40, kind: 'barrier' });
   decors.push({ kind: 'sand', x: 9320 });
   solids.push({ x: 9330, y: GROUND_Y - 34, w: 110, h: 34, kind: 'sandpile' });
-  trenches.push({ x: 9500, w: 130 });
+  trenches.push({ x: 9500, w: 65 });
   decors.push({ kind: 'rebar', x: 9660 });
   wires.push({ x: 9700, y: GROUND_Y - 60, w: 60, h: 60 });   // rebar zap zone (low!)
   solids.push({ x: 9820, y: GROUND_Y - 64, w: 180, h: 64, kind: 'container' });
   coinRow(9840, GROUND_Y - 120, 5);
-  trenches.push({ x: 10060, w: 150 });
+  trenches.push({ x: 10060, w: 75 });
   decors.push({ kind: 'mixer', x: 10260 });
   solids.push({ x: 10400, y: GROUND_Y - 40, w: 70, h: 40, kind: 'barrier' });
   decors.push({ kind: 'crane', x: 10550 });
   addBldg(10560, 300, 300, 'GULSHAN HEIGHTS MALL', '#95a5a6', '#7f8c8d', { sign: '#f39c12', signText: '#1e272e' });
   decors.push({ kind: 'scaffold', x: 10580 });
-  trenches.push({ x: 10920, w: 120 });
+  trenches.push({ x: 10920, w: 60 });
   decors.push({ kind: 'cones', x: 10880 });
   solids.push({ x: 11090, y: GROUND_Y - 40, w: 70, h: 40, kind: 'barrier' });
   solids.push({ x: 11230, y: GROUND_Y - 34, w: 110, h: 34, kind: 'sandpile' });
@@ -435,12 +434,14 @@ function buildLevel() {
   const cowX = 3300 + Math.floor(Math.random() * 5200);          // exactly one cow per run
   decors.push({ kind: 'cow', x: cowX, base: cowX, dir: 1 });
   decors.push({ kind: 'rollstall', x: 4980 });                   // Hot N Spicy rolls
-  decors.push({ kind: 'goldperformer', x: 3010 });              // gold-painted living statue
+  decors.push({ kind: 'goldperformer', x: 7050 });             // gold living statue at Disco Bakery
+  decors.push({ kind: 'admirer', x: 7118 });                   // pedestrian gawking at the gold boy
+  decors.push({ kind: 'flock', x: 4360 });                     // crows flying together over the meat shop
   decors.push({ kind: 'foosball', x: 2360 });                   // roadside foosball
   decors.push({ kind: 'foosball', x: 8600 });
   decors.push({ kind: 'excavator', x: 10720 });                 // parked excavator by a pothole
   decors.push({ kind: 'sand', x: 10830 });
-  decors.push({ kind: 'flowerseller', x: 7140 });               // rose seller at Disco signal
+  decors.push({ kind: 'flowerseller', x: 6740 });               // rose seller near Disco
   decors.push({ kind: 'beggar', x: 2760, phrase: 'kuch dedo?' });
   decors.push({ kind: 'beggar', x: 8650, phrase: 'khuda kay naam pe kuch dedo', nearOnly: true });
   // pedestrians: ~40% female (half burqa, half floral), rest men
@@ -528,7 +529,7 @@ const ZONE_SPAWN = [
   ['dumper', 'rickshaw'],
   ['bus', 'car'],
 ];
-const ZONE_RATE = [150, 95, 110, 100, 170, 320];   // zone F (bridge): light traffic
+const ZONE_RATE = [500, 317, 367, 333, 567, 1067]; // 70% fewer vehicles than before
 
 function spawnVehicle() {
   const z = zoneAt(player.x);
@@ -930,6 +931,13 @@ function drawRoadAndGround(dark) {
     ctx.fillRect(px(t.x), GROUND_Y, t.w, H - GROUND_Y);
     ctx.fillStyle = '#e67e22';
     ctx.fillRect(px(t.x) - 5, GROUND_Y - 3, 5, 8); ctx.fillRect(px(t.x + t.w), GROUND_Y - 3, 5, 8);
+    if (t.label) {                                            // labelled potholes
+      const lx = px(t.x + t.w / 2);
+      ctx.fillStyle = '#f1c40f'; ctx.fillRect(lx - 30, GROUND_Y - 58, 60, 16);
+      ctx.fillStyle = '#1e1e1e'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(t.label, lx, GROUND_Y - 47);
+      ctx.fillStyle = '#7f8c8d'; ctx.fillRect(lx - 1, GROUND_Y - 42, 2, 12); ctx.textAlign = 'left';
+    }
   }
   // bridge railing along the deck
   if (cam.x + W > RAMP_X0 - 100) {
@@ -1012,15 +1020,14 @@ function drawUnderpass(dark) {
       ctx.fillStyle = '#ff3b30'; ctx.fillRect(bx + 1, by + 1, 3, 2.5); ctx.fillRect(bx + cw - 4, by + 1, 3, 2.5);
     }
   }
-  // RASHID MINHAS ROAD gantry sign, standing on the cross-road (drawn inside the
-  // clip so the bridge deck above overlaps its top edge — reads as "behind the bridge")
-  const gx = cxw, gtop = horizon - 44;                     // in the open below the deck soffit
+  // RASHID MINHAS ROAD sign — big, low and near the camera so it's clearly readable
+  const gx = cxw, gtop = horizon - 30;                     // low in the open, below the deck
   ctx.fillStyle = dark ? '#26303a' : '#5a6470';
-  ctx.fillRect(gx - 64, gtop + 18, 5, horizon - gtop - 12); ctx.fillRect(gx + 59, gtop + 18, 5, horizon - gtop - 12);
-  ctx.fillStyle = dark ? '#0a4f29' : '#0b6e3a'; ctx.fillRect(gx - 68, gtop, 136, 19);
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(gx - 68, gtop, 136, 19);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('RASHID MINHAS RD', gx, gtop + 13); ctx.textAlign = 'left';
+  ctx.fillRect(gx - 84, gtop + 22, 6, horizon - gtop - 16); ctx.fillRect(gx + 78, gtop + 22, 6, horizon - gtop - 16);
+  ctx.fillStyle = dark ? '#0a4f29' : '#0b6e3a'; ctx.fillRect(gx - 90, gtop, 180, 24);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gx - 90, gtop, 180, 24);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('RASHID MINHAS ROAD', gx, gtop + 16); ctx.textAlign = 'left';
   ctx.restore();
   // support pillars from the deck soffit down (none in the carriageway itself)
   for (let wx = Math.ceil((RAMP_X0 + 10) / 220) * 220; wx < LEN; wx += 220) {
@@ -1175,6 +1182,15 @@ function speechBubble(cx, by, text) {
   ctx.fillStyle = '#1e272e'; ctx.textAlign = 'center';
   ctx.fillText(text, cx, by + bh / 2 + 5); ctx.textAlign = 'left';
 }
+function pedFace(cx, gy, face) {
+  face = face || 1;
+  const e = face > 0 ? 0 : -1;                                 // shift eyes toward facing dir
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 3 + e, gy - 37, 2, 2); ctx.fillRect(cx + 1 + e, gy - 37, 2, 2);
+  ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 2 + e, gy - 37, 1, 1); ctx.fillRect(cx + 2 + e, gy - 37, 1, 1); // pupils
+  ctx.fillStyle = '#3a2a1a'; ctx.fillRect(cx - 3 + e, gy - 39, 2, 1); ctx.fillRect(cx + 1 + e, gy - 39, 2, 1); // brows
+  ctx.fillStyle = '#a9763f'; ctx.fillRect(cx + e, gy - 35, 1, 2);                                              // nose
+  ctx.fillStyle = '#7a3b2a'; ctx.fillRect(cx - 1 + e, gy - 33, 3, 1);                                          // mouth
+}
 function drawPedestrian(cx, gy, shirt, ph, idle, type) {
   type = type || 'man';
   const sw = idle ? 0 : Math.sin(ph) * 2.5;
@@ -1193,12 +1209,16 @@ function drawPedestrian(cx, gy, shirt, ph, idle, type) {
     ctx.fillRect(cx + 5, gy - 31, 3, 13);
     ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 40, 8, 9);            // head
     ctx.fillStyle = '#d63384'; ctx.fillRect(cx - 5, gy - 43, 10, 5);          // headscarf
+    ctx.fillStyle = '#d63384'; ctx.fillRect(cx - 6, gy - 39, 2, 6); ctx.fillRect(cx + 4, gy - 39, 2, 6); // scarf sides
+    pedFace(cx, gy, 1);
     return;
   }
   // man
   ctx.fillStyle = shirt; ctx.fillRect(cx - 6, gy - 31, 13, 19);
   ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 40, 8, 9);
-  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 5, gy - 42, 10, 3);
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 5, gy - 42, 10, 3);            // hair
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 5, gy - 40, 1, 4); ctx.fillRect(cx + 4, gy - 40, 1, 4); // sideburns
+  pedFace(cx, gy, 1);
 }
 function wheel(cx, cy, r) {
   ctx.fillStyle = '#161616'; circle(cx, cy, r);          // tyre
@@ -2002,6 +2022,22 @@ function drawDecor(d, dark) {
     }
     if (d.greet && typeof player !== 'undefined' && player && Math.abs(player.x - d.x) < 140)
       speechBubble(x, pgy - 80, 'salam bhai kese ho');
+  } else if (d.kind === 'flock') {
+    // a group of crows wheeling together over the meat shop
+    const t = performance.now() / 1000;
+    for (let i = 0; i < 9; i++) {
+      const ang = t * 0.5 + i * 0.7;
+      const fx = x + Math.cos(ang) * (40 + (i % 3) * 16) + i * 4;
+      const fy = GROUND_Y - 250 + Math.sin(ang * 1.3 + i) * 22 - (i % 4) * 8;
+      crowAt(fx, fy, Math.floor(t * 6 + i) % 2 === 0);
+    }
+  } else if (d.kind === 'admirer') {
+    // pedestrian facing the gold boy, gawking
+    drawPedestrian(x, GROUND_Y, '#2980b9', 0, true, 'man');
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - 5, GROUND_Y - 37, 2, 2); ctx.fillRect(x - 1, GROUND_Y - 37, 2, 2);
+    ctx.fillStyle = '#15151a'; ctx.fillRect(x - 5, GROUND_Y - 37, 1, 1); ctx.fillRect(x - 1, GROUND_Y - 37, 1, 1); // eyes left
+    if (typeof player !== 'undefined' && player && Math.abs(player.x - d.x) < 200)
+      speechBubble(x - 4, GROUND_Y - 80, 'golden boy ko dekho');
   } else if (d.kind === 'finish') {
     const gy = groundYAt(d.x);
     ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, gy - 170, 10, 170);
@@ -2131,8 +2167,9 @@ function drawSkylineTitle() {
   for (let i = 0; i < W; i += 80) ctx.fillRect(i, H - 32, 40, 5);
 }
 
-function drawWaitingBike(sx, gy, withPassenger, smoking, bob) {
+function drawWaitingBike(sx, gy, withPassenger, smoking, bob, riderLift) {
   const yy = gy + (bob || 0);
+  const lift = riderLift || 0;                                  // riders sit this many px above the seat (mounting)
   // CD70 sprite, flipped to face RIGHT (the ride direction)
   const spr = sprites.bike;
   if (spr) {
@@ -2149,7 +2186,7 @@ function drawWaitingBike(sx, gy, withPassenger, smoking, bob) {
     ctx.fillStyle = '#1a1a1a'; ctx.fillRect(sx + 12, yy - 27, 24, 4);
   }
   // driver — green Bykea kit, black helmet
-  const dy0 = yy - 32;
+  const dy0 = yy - 32 - lift;
   ctx.fillStyle = '#0aa54f'; ctx.fillRect(sx + 26, dy0, 12, 17);                 // torso
   ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 36, dy0 + 3, 7, 3);              // arm to bars
   ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 28, dy0 - 9, 9, 9);              // head
@@ -2175,7 +2212,10 @@ function drawWaitingBike(sx, gy, withPassenger, smoking, bob) {
 }
 
 function drawRideScene() {
-  drawWaitingBike(px(bikeX), groundYAt(bikeX), true, rideT > 55);
+  // climb-on animation: riders rise up and settle onto the seat over the first ~30 frames
+  const lift = rideT < 30 ? (1 - rideT / 30) * 14 + Math.abs(Math.sin(rideT * 0.4)) * 3 : 0;
+  const showRiders = true;
+  drawWaitingBike(px(bikeX), groundYAt(bikeX), showRiders, rideT > 55, 0, lift);
   if (rideT <= 55) {
     ctx.fillStyle = 'rgba(20,20,30,.7)'; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
     ctx.fillStyle = '#ffd32a';
@@ -2200,18 +2240,30 @@ function drawCredits() {
   }
   ctx.globalAlpha = 1;
   // --- night scene (behind the credits text) ---
-  // distant apartment blocks with lit/dark windows (kept low so text stays clear)
+  // far skyline layer (slow parallax, dim)
+  for (let bi = 0; bi < 9; bi++) {
+    const bw = 90 + (bi * 71) % 70, bh = 40 + (bi * 53) % 46;
+    let bx = ((bi * 250) - (scroll * 0.16)) % (W + 320);
+    if (bx < -240) bx += W + 320;
+    if (bx > W + 20) continue;
+    ctx.fillStyle = '#10132a'; ctx.fillRect(bx, SY - bh, bw, bh + (H - SY));
+    for (let r = 0; r < bh / 16 - 1; r++) for (let col = 0; col < bw / 13 - 1; col++) {
+      ctx.fillStyle = (((col * 7 + r * 13 + bi * 17) % 7) < 2) ? '#c9b06a' : '#0a0d20';   // stable on/off
+      ctx.fillRect(bx + 6 + col * 13, SY - bh + 9 + r * 16, 6, 7);
+    }
+  }
+  // near apartment blocks with stable lit/dark windows (no flicker)
   for (let bi = 0; bi < 11; bi++) {
     const bw = 64 + (bi * 53) % 56, bh = 54 + (bi * 97) % 70;
     let bx = ((bi * 210) - (scroll * 0.35)) % (W + 250);
     if (bx < -180) bx += W + 250;
     if (bx > W + 20) continue;
     ctx.fillStyle = '#161a32'; ctx.fillRect(bx, SY - bh, bw, bh + (H - SY));
-    for (let wy = SY - bh + 9; wy < RD - 12; wy += 15)
-      for (let wx2 = bx + 6; wx2 < bx + bw - 8; wx2 += 13) {
-        ctx.fillStyle = ((wx2 * 13 + wy * 7 + bi * 31) % 5) < 2 ? '#ffd98a' : '#0d1024';
-        ctx.fillRect(wx2, wy, 7, 8);
-      }
+    for (let r = 0; r < bh / 15 - 1; r++) for (let col = 0; col < bw / 13 - 1; col++) {
+      // lit state keyed to the window's own index + building id => steady, never flickers
+      ctx.fillStyle = (((col * 11 + r * 7 + bi * 31) % 5) < 2) ? '#ffd98a' : '#0d1024';
+      ctx.fillRect(bx + 6 + col * 13, SY - bh + 9 + r * 15, 7, 8);
+    }
   }
   // wide road, two lanes
   ctx.fillStyle = '#1b1e30'; ctx.fillRect(0, RD, W, H - RD);
@@ -2228,14 +2280,15 @@ function drawCredits() {
     ctx.fillStyle = grd;
     ctx.beginPath(); ctx.moveTo(lx + 25, RD - 78); ctx.lineTo(lx + 34, RD - 78); ctx.lineTo(lx + 60, H); ctx.lineTo(lx - 2, H); ctx.closePath(); ctx.fill();
   }
-  // SHAHRAH-E-FAISAL gantry drifts past
-  const gb = W + 260 - ((scroll * 0.8) % (W * 4 + 520));
-  if (gb > -260 && gb < W + 40) {
-    ctx.fillStyle = '#3a4061'; ctx.fillRect(gb + 30, RD - 70, 5, 70); ctx.fillRect(gb + 185, RD - 70, 5, 70);
-    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(gb, RD - 74, 220, 24);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gb, RD - 74, 220, 24);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('SHAHRAH-E-FAISAL', gb + 110, RD - 57);
+  // SHAHRAH-E-FAISAL board — comes toward us like oncoming traffic (slides right→left), stays readable
+  const period = W + 900;
+  const gb = W + 120 - ((creditsT * 3.0) % period);
+  if (gb > -240 && gb < W + 40) {
+    ctx.fillStyle = '#34507a'; ctx.fillRect(gb + 36, RD - 56, 6, 56); ctx.fillRect(gb + 198, RD - 56, 6, 56); // posts to road
+    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(gb + 14, RD - 62, 212, 26);      // board, low over the road
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gb + 14, RD - 62, 212, 26);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('SHAHRAH-E-FAISAL', gb + 120, RD - 44);
   }
   // a rare passing car
   const carP = (creditsT * 5.0) % (W * 5 + 800);
@@ -2280,7 +2333,7 @@ function drawCredits() {
     ctx.fillText(lines[i][0], W / 2, ly);
   }
   // our bike — fixed position, gentle bob
-  const bob = Math.sin(creditsT / 9) * 2.5;
+  const bob = Math.sin(creditsT / 9) * 1.25;                    // gentler bob (50% less)
   drawWaitingBike(W * 0.32, H - 14, true, Math.floor(creditsT / 6) % 3 === 0, bob);
   if (Math.floor(t / 600) % 2 === 0) {
     ctx.textAlign = 'center'; ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#ffd32a';
