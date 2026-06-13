@@ -1759,11 +1759,13 @@ function drawDecor(d, dark) {
     ctx.fillRect(x + 22, lgy - 128, 10, 8);
     if (lit) {
       const nfL = nightFactor();
-      // large bulb halo
-      ctx.globalAlpha = 0.55 + 0.20 * nfL;
-      ctx.fillStyle = col; circle(x + 27, lgy - 123, 46);
+      // soft radial halo — fades outward so no hard white circle edge
+      ctx.globalAlpha = 0.55 + 0.25 * nfL;
+      const hg = ctx.createRadialGradient(x + 27, lgy - 123, 0, x + 27, lgy - 123, 46);
+      hg.addColorStop(0, col); hg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = hg; circle(x + 27, lgy - 123, 46);
       // downward light cone to ground
-      ctx.globalAlpha = 0.22 + 0.18 * nfL;
+      ctx.globalAlpha = 0.14 + 0.10 * nfL;
       const cg = ctx.createRadialGradient(x + 27, lgy - 118, 0, x + 27, lgy, 95);
       cg.addColorStop(0, col); cg.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = cg; ctx.fillRect(x - 65, lgy - 118, 180, 118);
