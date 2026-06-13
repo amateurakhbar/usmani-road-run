@@ -2501,56 +2501,72 @@ function drawServer(cx, gy, t, idle) {
 }
 function drawOwner(cx, gy, t) {
   const panSide = Math.sin(t / 700) > 0 ? 1 : -1;
-  const sw = Math.round(Math.sin(t / 480) * 2);   // stride ±2px, legs alternate
+  const phase = t / 800;  // slow stride cycle
 
-  // legs (19px tall — 20% taller than original 16px)
-  ctx.fillStyle = '#dcdcd2';
-  ctx.fillRect(cx - 6 + sw, gy - 19, 6, 19);      // left leg
-  ctx.fillRect(cx + 1 - sw, gy - 19, 6, 19);      // right leg
-  // shoes follow legs
-  ctx.fillStyle = '#2b2b2b';
-  ctx.fillRect(cx - 7 + sw, gy - 2, 7, 2);        // left shoe
-  ctx.fillRect(cx - 1 - sw, gy - 2, 7, 2);        // right shoe
+  // bending legs: thigh + shin each drawn as a parallelogram (23px total)
+  const hipY = gy - 23;
+  const thighH = 12, shinH = 11, lean = 5;
+  const lP = Math.sin(phase), rP = -lP;
 
-  // kameez (18px tall, gy-37 to gy-19)
-  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 7, gy - 37, 15, 18);
-  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(cx - 7, gy - 37, 2, 18);
+  function drawLeg(hipX, legP) {
+    const kx = hipX + legP * lean;
+    const ky = hipY + thighH;
+    const fx = kx - legP * (lean * 0.55);
+    ctx.fillStyle = '#dcdcd2';
+    ctx.beginPath();
+    ctx.moveTo(hipX - 2, hipY); ctx.lineTo(hipX + 3, hipY);
+    ctx.lineTo(Math.round(kx) + 3, ky); ctx.lineTo(Math.round(kx) - 2, ky);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(Math.round(kx) - 2, ky); ctx.lineTo(Math.round(kx) + 3, ky);
+    ctx.lineTo(Math.round(fx) + 3, gy - 2); ctx.lineTo(Math.round(fx) - 2, gy - 2);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2b2b2b';
+    ctx.fillRect(Math.round(fx) - 3, gy - 2, 7, 2);
+  }
 
-  // head (11px tall, gy-48 to gy-37)
-  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 48, 9, 11);
+  drawLeg(cx - 3, lP);
+  drawLeg(cx + 3, rP);
 
-  // kufi topi (6px tall, gy-54 to gy-48)
-  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 4, gy - 54, 9, 6);
-  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 3, gy - 54, 8, 2);
+  // kameez (21px: gy-44 to gy-23)
+  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 8, gy - 44, 17, 21);
+  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(cx - 8, gy - 44, 2, 21);
+
+  // head (13px: gy-57 to gy-44)
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 5, gy - 57, 11, 13);
+
+  // kufi topi (7px: gy-64 to gy-57)
+  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 5, gy - 64, 11, 7);
+  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 4, gy - 64, 9, 2);
 
   // beard
   ctx.fillStyle = '#2e1a0a';
-  ctx.fillRect(cx - 3, gy - 43, 8, 6);            // main beard
-  ctx.fillRect(cx - 2, gy - 38, 5, 2);            // chin
-  ctx.fillRect(cx - 1, gy - 37, 3, 1);
+  ctx.fillRect(cx - 4, gy - 51, 9, 7);
+  ctx.fillRect(cx - 3, gy - 45, 6, 2);
+  ctx.fillRect(cx - 2, gy - 44, 4, 1);
 
   // mustache
-  ctx.fillStyle = '#3a2010'; ctx.fillRect(cx - 3, gy - 46, 8, 2);
+  ctx.fillStyle = '#3a2010'; ctx.fillRect(cx - 4, gy - 55, 9, 2);
 
   // eyes
-  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 3, gy - 45, 2, 2); ctx.fillRect(cx + 1, gy - 45, 2, 2);
-  ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 2, gy - 45, 1, 2); ctx.fillRect(cx + 2, gy - 45, 1, 2);
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 4, gy - 54, 2, 2); ctx.fillRect(cx + 2, gy - 54, 2, 2);
+  ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 3, gy - 54, 1, 2); ctx.fillRect(cx + 3, gy - 54, 1, 2);
 
-  // facial expression: cycles neutral → smile → neutral → frown → neutral every 2.8s
+  // facial expression: neutral → smile → neutral → frown → neutral
   const expr = Math.floor(t / 2800) % 5;
   ctx.fillStyle = '#6e2c1a';
-  if (expr === 1) {                                // smile — corners up
-    ctx.fillRect(cx - 1, gy - 41, 4, 1);
-    ctx.fillRect(cx - 2, gy - 42, 1, 1); ctx.fillRect(cx + 3, gy - 42, 1, 1);
-  } else if (expr === 3) {                         // frown — corners down
-    ctx.fillRect(cx - 1, gy - 42, 4, 1);
-    ctx.fillRect(cx - 2, gy - 41, 1, 1); ctx.fillRect(cx + 3, gy - 41, 1, 1);
-  } else {                                         // neutral straight line
-    ctx.fillRect(cx - 1, gy - 41, 4, 1);
+  if (expr === 1) {
+    ctx.fillRect(cx - 1, gy - 49, 4, 1);
+    ctx.fillRect(cx - 2, gy - 50, 1, 1); ctx.fillRect(cx + 3, gy - 50, 1, 1);
+  } else if (expr === 3) {
+    ctx.fillRect(cx - 1, gy - 50, 4, 1);
+    ctx.fillRect(cx - 2, gy - 49, 1, 1); ctx.fillRect(cx + 3, gy - 49, 1, 1);
+  } else {
+    ctx.fillRect(cx - 1, gy - 49, 4, 1);
   }
 
-  // pan bulge on cheek
-  ctx.fillStyle = 'rgba(200,80,50,0.6)'; circle(cx + panSide * 3, gy - 43, 2.5);
+  // pan blush
+  ctx.fillStyle = 'rgba(200,80,50,0.6)'; circle(cx + panSide * 3, gy - 52, 2.5);
 }
 function drawStandingFan(cx, gy, t) {
   // compact fan — head at face level (~gy-44)
@@ -2605,40 +2621,63 @@ function drawDeliveryBoy(cx, gy) {
 }
 function drawWalkingCat(cx, gy, col, t) {
   const s = Math.sin(t / 165);
-  // tail at back-left, sways gently with stride
+
+  // tail
   ctx.strokeStyle = col; ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.moveTo(cx - 7, gy - 10);
   ctx.quadraticCurveTo(cx - 17 + s * 1.5, gy - 13, cx - 15 + s, gy - 26 + s * 2);
   ctx.stroke();
-  // body horizontal
+
+  // bent-knee leg helper: draws upper+lower segment meeting at a knee
+  function bentLeg(topX, topY, phase) {
+    const kx = topX + Math.round(phase * 4);  // knee swings fore/aft
+    const ky = topY + 4;
+    const fx = kx + Math.round(-phase * 2);   // foot eases back under body
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(topX, topY); ctx.lineTo(topX + 2, topY);
+    ctx.lineTo(kx + 2, ky); ctx.lineTo(kx, ky);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(kx, ky); ctx.lineTo(kx + 2, ky);
+    ctx.lineTo(fx + 2, gy); ctx.lineTo(fx, gy);
+    ctx.closePath(); ctx.fill();
+    ctx.fillRect(fx - 1, gy - 1, 4, 1);  // paw
+  }
+
+  // rear legs drawn behind body
+  bentLeg(cx - 4, gy - 8, -s);
+  bentLeg(cx + 0, gy - 8,  s);
+
+  // body, neck, head
   ctx.fillStyle = col;
   ctx.fillRect(cx - 7, gy - 14, 18, 8);
-  ctx.fillRect(cx + 9, gy - 17, 5, 5);   // neck
-  // head at front (right side)
+  ctx.fillRect(cx + 9, gy - 17, 5, 5);
   ctx.fillRect(cx + 8, gy - 22, 9, 9);
+
+  // front legs drawn in front of body
+  bentLeg(cx + 5, gy - 8,  s);
+  bentLeg(cx + 9, gy - 8, -s);
+
   // ears
+  ctx.fillStyle = col;
   ctx.beginPath(); ctx.moveTo(cx+8,gy-21); ctx.lineTo(cx+6,gy-27); ctx.lineTo(cx+12,gy-21); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(cx+13,gy-21); ctx.lineTo(cx+15,gy-27); ctx.lineTo(cx+17,gy-21); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#f9a8d4';
   ctx.beginPath(); ctx.moveTo(cx+9,gy-21); ctx.lineTo(cx+7,gy-25); ctx.lineTo(cx+12,gy-21); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(cx+13,gy-21); ctx.lineTo(cx+15,gy-25); ctx.lineTo(cx+17,gy-21); ctx.closePath(); ctx.fill();
-  // eye (side-facing)
+
+  // eye
   const blink2 = (t % 3600) < 110;
   if (blink2) { ctx.fillStyle = col; ctx.fillRect(cx+10, gy-18, 4, 1); }
   else { ctx.fillStyle = '#4ade80'; ctx.fillRect(cx+10, gy-19, 4, 4); ctx.fillStyle = '#15151a'; ctx.fillRect(cx+11, gy-18, 2, 3); }
-  // nose + whiskers (pointing forward, right)
+
+  // nose + whiskers
   ctx.fillStyle = '#f9a8d4'; ctx.fillRect(cx+15, gy-14, 1, 1);
   ctx.strokeStyle = '#aaa'; ctx.lineWidth = 0.6;
   ctx.beginPath(); ctx.moveTo(cx+15, gy-14); ctx.lineTo(cx+21, gy-13); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cx+15, gy-14); ctx.lineTo(cx+21, gy-15); ctx.stroke();
-  // 4 legs with stride animation (diagonal pairs)
-  ctx.fillStyle = col;
-  const stride = s * 3.5;
-  ctx.fillRect(cx + 4, gy - 7, 3, 7 + stride);   // front-right
-  ctx.fillRect(cx + 8, gy - 7, 3, 7 - stride);   // front-left
-  ctx.fillRect(cx - 5, gy - 7, 3, 7 - stride);   // rear-right
-  ctx.fillRect(cx + 0, gy - 7, 3, 7 + stride);   // rear-left
 }
 function drawWalkingCatBrown(t, baseY) {
   const cycleMs = 20000;
@@ -2870,7 +2909,7 @@ function drawTitle() {
   drawStandingFan(gx + 92, baseY, t);
   drawCatTitle(gx - 16, baseY, '#1a1a1a', t + 500);
   // owner paces left-to-right within the seating area
-  const ownerPeriod = 7500;
+  const ownerPeriod = 13000;
   const ownerPhase = (t % ownerPeriod) / ownerPeriod;
   const ownerBounce = ownerPhase < 0.5 ? ownerPhase * 2 : (1 - ownerPhase) * 2;
   const ownerX = Math.round(fLeft + 10 + ownerBounce * (tableX0 + 168 - fLeft - 20));
