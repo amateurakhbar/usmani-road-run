@@ -129,6 +129,7 @@ addEventListener('keydown', e => {
   if ((e.code === 'KeyR' || e.code === 'Enter') && state === 'credits') { state = 'title'; titleStart = performance.now(); }
   if (e.code === 'KeyP' && state === 'play') paused = !paused;
   if (e.code === 'KeyM') musicOn = !musicOn;
+  if (e.code === 'KeyE' && state === 'title') easyMode = !easyMode;
   if (!e.repeat && (e.code === 'ArrowLeft' || e.code === 'KeyA')) recordCheat('L');
   if (!e.repeat && (e.code === 'ArrowRight' || e.code === 'KeyD')) recordCheat('R');
 });
@@ -148,9 +149,9 @@ addEventListener('touchend', e => {
 // ---------- audio (tiny webaudio beeps) ----------
 let AC = null;
 function initAudio() {
-  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} musicTarget = ''; }
   if (AC && AC.state === 'suspended') AC.resume();
-  musicTarget = ''; updateMusicTracks();
+  updateMusicTracks();
 }
 function tone(freq, dur, type, vol, when, slide) {
   if (!AC) return;
@@ -398,9 +399,10 @@ function buildLevel() {
   powerups.push({ x: 5050, y: GROUND_Y - 60, kind: 'bunkabab', taken: false });
 
   // --- Zone D: Block 2 — Disco Bakery ---
-  addBldg(6700, 160, 200, 'CLINIC LAB', '#dfe6e9', '#b2bec3', { signText: '#c0392b' });
+  addBldg(6700, 160, 200, 'JUNIORS CLINIC', '#dfe6e9', '#b2bec3', { signText: '#c0392b' });
   // Disco Bakery — the icon
   addBldg(6900, 280, 280, 'DISCO BAKERY', '#1c1c22', '#101015', { sign: '#ffd32a', signText: '#1c1c22', awning: '#ffd32a' });
+  decors.push({ kind: 'billboard', x: 6900, lines: ['IGLOO', 'ICE CREAM', 'thanda matlab...'], bg: '#e60026', fg: '#ffffff' });
   decors.push({ kind: 'signal', x: 7205 });
   decors.push({ kind: 'busstop', x: 7260 });
   platforms.push({ x: 7250, y: GROUND_Y - 100, w: 130, h: 10, shelter: true });
@@ -504,9 +506,10 @@ buildLevel();
 let state = 'title';   // title | play | gameover | win
 let titleStart = performance.now();  // drives day/night cycle on title screen
 let paused = false;
-let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, toast, deathX;
+let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, shedDone, toast, deathX;
 let iceCount = 0, lastIceX = -99999;
 let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
+let easyMode = false;                 // toggled on title screen — sets godMode on game start
 let policeTollLeft = 20, policeTollCd = 0, policeTollDone = 0;   // chai-paani vasooli at the bridge
 let playerSay = { t: 0, text: '' }, sayTimer = 0, sayScript = [], sayDelay = 0;
 let rideT = 0, bikeX = 0, creditsT = 0, rupeesCollected = 0;
@@ -529,10 +532,10 @@ function startGame() {
   spawnT = 60;
   rupees = 0; hearts = 3;
   iframes = 0; boostT = 0; starT = 0;
-  shedT = 0;
+  shedT = 0; shedDone = false;
   toast = { text: 'MASKAN CHOWRANGI', t: 150 };
   iceCount = 0; lastIceX = -99999;
-  godMode = false; cheatSeq = [];     // cheat lasts one run only
+  godMode = easyMode; cheatSeq = [];  // easy mode = permanent god mode for this run
   policeTollLeft = 20; policeTollCd = 0; policeTollDone = 0;
   rideT = 0; bikeX = 0; creditsT = 0; rupeesCollected = 0; crowSeen.clear();
   playerSay = { t: 0, text: '' };
@@ -749,9 +752,12 @@ function step() {
     iceGain.gain.setTargetAtTime(target, AC.currentTime, 0.15);
   }
 
-  // load shedding cycle: 30s period — dark from 24s to 30s
-  shedT = (shedT + 1) % 1800;
-  if (shedT === 1320) toast = { text: 'LOAD SHEDDING AANE WALI HAI...', t: 110 };
+  // load shedding — happens once per run
+  if (!shedDone) {
+    shedT++;
+    if (shedT === 1320) toast = { text: 'LOAD SHEDDING AANE WALI HAI...', t: 110 };
+    if (shedT >= 1800) { shedDone = true; shedT = 0; }
+  }
 
   // zone toast
   const z = zoneAt(player.x), zPrev = zoneAt(player.x - player.vx);
@@ -1926,34 +1932,31 @@ function drawDecor(d, dark) {
     circle(x - 14, GROUND_Y - 7, 8); circle(x - 26, GROUND_Y - 5, 6); circle(x - 7, GROUND_Y - 4, 5);
     ctx.fillStyle = '#57606f'; ctx.fillRect(x - 30, GROUND_Y - 3, 30, 3);
   } else if (d.kind === 'tables') {
-    // Jannat outdoor seating: GENTS AREA in the open, FAMILY AREA behind a cloth fence
-    const drawTable = tx => {
-      ctx.fillStyle = '#f4f6f6'; ctx.beginPath(); ctx.ellipse(tx + 11, GROUND_Y - 26, 12, 5, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = '#d8dcdc'; ctx.fillRect(tx + 9, GROUND_Y - 24, 4, 24);
-      ctx.fillStyle = '#f4f6f6';
-      ctx.fillRect(tx - 6, GROUND_Y - 16, 7, 3); ctx.fillRect(tx - 6, GROUND_Y - 13, 3, 13);   // chairs
-      ctx.fillRect(tx + 21, GROUND_Y - 16, 7, 3); ctx.fillRect(tx + 25, GROUND_Y - 13, 3, 13);
-    };
-    // gents area — open air
-    drawTable(x); drawTable(x + 38);
-    drawPedestrian(x + 20, GROUND_Y, '#16607a', 0, true, 'man');
-    ctx.fillStyle = '#2c3e50'; ctx.fillRect(x - 8, GROUND_Y - 80, 66, 12);
+    const t = performance.now();
+    // ── FAMILY AREA: 2 tables behind partial white cloth ──
+    const fleft = x - 20, fright = x + 125, fh = 36;
+    ctx.globalAlpha = 0.84; ctx.fillStyle = '#e8e8e8';
+    ctx.fillRect(fleft, GROUND_Y - fh, fright - fleft, fh);
+    ctx.globalAlpha = 1; ctx.fillStyle = '#c0c0c0';
+    ctx.fillRect(fleft, GROUND_Y - fh, fright - fleft, 2);
+    ctx.fillStyle = '#8a8a8a';
+    ctx.fillRect(fleft - 2, GROUND_Y - fh - 6, 4, fh + 6);
+    ctx.fillRect(fright - 2, GROUND_Y - fh - 6, 4, fh + 6);
+    ctx.fillRect((fleft + fright) / 2 - 2, GROUND_Y - fh - 4, 4, fh + 4);
     ctx.fillStyle = '#fff'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('GENTS AREA', x + 25, GROUND_Y - 71);
-    // family area — three tables behind a qanat (cloth fence)
-    const fx = x + 86;
-    drawTable(fx + 8); drawTable(fx + 44); drawTable(fx + 80);
-    drawPedestrian(fx + 28, GROUND_Y, '#6c3483', 0, true, 'floral');
-    drawPedestrian(fx + 64, GROUND_Y, '#16607a', 0, true, 'floral');
-    ctx.globalAlpha = 0.88; ctx.fillStyle = '#b71540';            // cloth panels
-    ctx.fillRect(fx - 4, GROUND_Y - 34, 112, 28);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = '#7a0f2b';                                     // fence posts
-    for (let i = 0; i <= 4; i++) ctx.fillRect(fx - 6 + i * 28, GROUND_Y - 40, 4, 40);
-    ctx.fillStyle = '#fff'; ctx.fillRect(fx + 14, GROUND_Y - 30, 76, 11);
-    ctx.fillStyle = '#b71540'; ctx.font = 'bold 7px monospace';
-    ctx.fillText('FAMILY AREA', fx + 52, GROUND_Y - 22);
-    ctx.textAlign = 'left';
+    ctx.fillText('FAMILY AREA', (fleft + fright) / 2, GROUND_Y - fh - 10); ctx.textAlign = 'left';
+    drawTableGroup(x + 14, GROUND_Y, '#6c3483', 'man', '#e84393', 'floral', t);
+    drawTableGroup(x + 70, GROUND_Y, '#e67e22', 'man', '#27ae60', 'floral', t + 120);
+    drawServer(x + 45, GROUND_Y, t + 300, false);
+    // ── DIVIDER ──
+    const gx2 = x + 138;
+    ctx.fillStyle = '#7a0f2b'; ctx.fillRect(gx2, GROUND_Y - 44, 4, 44);
+    // ── GENTS AREA: 1 table, open air ──
+    ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('GENTS AREA', gx2 + 44, GROUND_Y - 52); ctx.textAlign = 'left';
+    drawTableGroup(gx2 + 30, GROUND_Y, '#16607a', 'man', '#2980b9', 'man', t + 80);
+    // owner near seating
+    drawOwner(x - 14, GROUND_Y, t);
   } else if (d.kind === 'chaiwala') {
     ctx.fillStyle = '#7a4a21'; ctx.fillRect(x, GROUND_Y - 34, 56, 34);             // counter
     ctx.fillStyle = '#925a2b'; ctx.fillRect(x - 3, GROUND_Y - 40, 62, 8);
@@ -2023,28 +2026,30 @@ function drawDecor(d, dark) {
     ctx.textAlign = 'left';
   } else if (d.kind === 'desibbq') {
     const t = performance.now();
-    // customers behind/around
+    // customers
     drawPedestrian(x - 16, GROUND_Y, '#34495e', t / 300, false, 'man');
-    drawPedestrian(x + 82, GROUND_Y, '#6c3483', 0, true, 'man');
-    drawPedestrian(x + 96, GROUND_Y, '#7f8c8d', 0, true, 'man');
-    // cook standing behind the grill
-    drawPedestrian(x + 34, GROUND_Y, '#f4f4f4', 0, true, 'man');
-    // charcoal grill
-    ctx.fillStyle = '#2f2f2f'; ctx.fillRect(x, GROUND_Y - 22, 70, 14);
-    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x, GROUND_Y - 9, 70, 3);
-    for (let i = 0; i < 6; i++) { ctx.fillStyle = (Math.floor(t / 280 + i) % 2) ? '#e25822' : '#ff8c34'; ctx.fillRect(x + 6 + i * 10, GROUND_Y - 18, 7, 4); }
-    ctx.fillStyle = '#7a4a2b'; for (let i = 0; i < 5; i++) ctx.fillRect(x + 5 + i * 12, GROUND_Y - 26, 11, 3);  // seekh kebabs
-    // thick BBQ smoke billowing up from several points along the grill
-    for (let src = 0; src < 4; src++) {
-      const ox = x + 12 + src * 16;
-      for (let i = 0; i < 5; i++) {
-        const sy = (t / 1000 * 17 + i * 17 + src * 9) % 120;
-        ctx.globalAlpha = 0.34 * (1 - sy / 120);
-        ctx.fillStyle = '#d2d2d2';
-        circle(ox + Math.sin(t / 650 + i + src) * 11, GROUND_Y - 28 - sy, 5 + sy * 0.10);
+    drawPedestrian(x + 106, GROUND_Y, '#6c3483', 0, true, 'man');
+    drawPedestrian(x + 120, GROUND_Y, '#7f8c8d', 0, true, 'man');
+    // cook
+    drawPedestrian(x + 44, GROUND_Y, '#f4f4f4', 0, true, 'man');
+    // wide charcoal grill (100px)
+    ctx.fillStyle = '#3a3a3a'; ctx.fillRect(x, GROUND_Y - 26, 100, 14);
+    ctx.fillStyle = '#1e1e1e'; ctx.fillRect(x, GROUND_Y - 13, 100, 3);
+    for (let i = 0; i < 11; i++) { ctx.fillStyle = (Math.floor(t / 280 + i) % 2) ? '#e25822' : '#ff8c34'; ctx.fillRect(x + 4 + i * 9, GROUND_Y - 22, 7, 4); }
+    ctx.fillStyle = '#7a4a2b'; for (let i = 0; i < 9; i++) ctx.fillRect(x + 4 + i * 10, GROUND_Y - 30, 9, 3);
+    // thick dark smoke from 7 sources
+    for (let src = 0; src < 7; src++) {
+      const ox = x + 7 + src * 13;
+      for (let i = 0; i < 6; i++) {
+        const sy = (t / 700 * 22 + i * 14 + src * 8) % 110;
+        ctx.globalAlpha = 0.70 * (1 - sy / 110);
+        ctx.fillStyle = sy < 30 ? '#3a3a3a' : '#6a6a6a';
+        circle(ox + Math.sin(t / 500 + i + src) * 9, GROUND_Y - 32 - sy, 4 + sy * 0.09);
       }
     }
     ctx.globalAlpha = 1;
+    drawStandingFan(x + 108, GROUND_Y, t);
+    drawOwner(x - 10, GROUND_Y, t);
   } else if (d.kind === 'jannat') {
     drawJannatFacade(x, GROUND_Y, d.w, d.h, dark);
   } else if (d.kind === 'masjid') {
@@ -2250,39 +2255,116 @@ function heart(x, y, r) {
   ctx.fill();
 }
 
+function drawPepsiFridge(cx, gy) {
+  ctx.fillStyle = '#003087'; ctx.fillRect(cx - 12, gy - 56, 24, 56);
+  ctx.fillStyle = '#001a5e'; ctx.fillRect(cx - 12, gy - 56, 24, 10);   // dark blue top
+  ctx.fillStyle = '#b8d4f0'; ctx.fillRect(cx - 12, gy - 46, 24, 8);   // light blue band
+  ctx.fillStyle = '#003087'; ctx.fillRect(cx - 10, gy - 36, 20, 30);
+  ctx.fillStyle = '#a0a8b8'; ctx.fillRect(cx - 2, gy - 32, 4, 2); ctx.fillRect(cx - 2, gy - 14, 4, 2);
+  ctx.fillStyle = '#0047b3'; ctx.fillRect(cx - 7, gy - 44, 14, 4);    // medium blue logo band
+  ctx.fillStyle = '#003087'; ctx.fillRect(cx - 7, gy - 40, 14, 2);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 5px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('PEPSI', cx, gy - 51); ctx.fillText('COLA', cx, gy - 44);
+  ctx.textAlign = 'left';
+}
+function drawBeggar(cx, gy) {
+  ctx.fillStyle = '#7a6450'; ctx.fillRect(cx - 8, gy - 20, 16, 20);
+  ctx.fillStyle = '#c8a06f'; circle(cx, gy - 24, 5);
+  ctx.fillStyle = '#52402e'; ctx.fillRect(cx - 10, gy - 28, 20, 9);
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx + 2, gy - 25, 2, 2);
+  ctx.fillStyle = '#8a6450'; ctx.fillRect(cx - 10, gy - 3, 20, 3);
+  ctx.fillStyle = '#7a5a3a'; ctx.fillRect(cx - 5, gy - 1, 10, 4);
+  ctx.fillStyle = '#c9a878'; ctx.fillRect(cx - 4, gy, 8, 2);
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx + 7, gy - 9, 8, 3);
+}
 function drawJannatFacade(x, baseY, w, h, dark) {
   const top = baseY - h, shopH = 60;
   // residential tower
   ctx.fillStyle = dark ? '#5a5340' : '#e8dcc0'; ctx.fillRect(x, top, w, h);
   ctx.fillStyle = dark ? '#4a4534' : '#d8c8a4'; ctx.fillRect(x, top, w, 8); ctx.fillRect(x, top, 6, h);
-  // parapet + rooftop water tank
+  // parapet + water tank
   ctx.fillStyle = dark ? '#3f3a2c' : '#cdbf96'; ctx.fillRect(x - 3, top - 6, w + 6, 6);
   ctx.fillStyle = dark ? '#6b5f33' : '#b9a86a'; ctx.fillRect(x + 16, top - 18, 26, 12);
   ctx.fillStyle = dark ? '#52471f' : '#9a8a4a'; ctx.fillRect(x + 16, top - 18, 26, 3);
-  // apartment floors: windows + small balconies (above the shopfront)
+  // apartment floors
   const floors = Math.floor((h - 14 - shopH) / 44);
   for (let f = 0; f < floors; f++) {
     const fy = top + 16 + f * 44;
     for (let wx = x + 14; wx < x + w - 22; wx += 40) {
       ctx.fillStyle = dark ? (((wx + f) % 3) ? '#16213a' : '#ffdf9a') : '#9ab2c4';
-      ctx.fillRect(wx, fy, 22, 20);                              // window
+      ctx.fillRect(wx, fy, 22, 20);
       ctx.fillStyle = dark ? '#0e1730' : '#7892a6'; ctx.fillRect(wx, fy + 14, 22, 6);
     }
-    ctx.fillStyle = dark ? '#4a4838' : '#c9b98c';                // balcony slab + rail
-    ctx.fillRect(x + 8, fy + 22, w - 16, 4);
+    ctx.fillStyle = dark ? '#4a4838' : '#c9b98c'; ctx.fillRect(x + 8, fy + 22, w - 16, 4);
     ctx.fillStyle = dark ? '#5a5644' : '#b7a877';
     for (let bx = x + 12; bx < x + w - 12; bx += 8) ctx.fillRect(bx, fy + 26, 2, 7);
   }
-  // lower-ground shopfront: dark glass, red awning, sign in Urdu + English
+  // ── OPEN SHOPFRONT: white walls, strip lights, meat, cooks ──
   const sy = baseY - shopH;
-  ctx.fillStyle = dark ? '#14161c' : '#23252b'; ctx.fillRect(x + 5, sy, w - 10, shopH);
-  ctx.fillStyle = '#3a3f48';
-  for (let gx = x + 10; gx < x + w - 12; gx += 26) ctx.fillRect(gx, sy + 6, 20, shopH - 14);  // glass panes
-  ctx.fillStyle = '#ff7b54';                                     // tandoor glow inside
-  ctx.fillRect(x + w - 30, sy + shopH - 22, 16, 16);
-  ctx.fillStyle = '#b71540'; ctx.fillRect(x - 2, sy - 8, w + 4, 12);   // awning
+  const iw = w - 10, ix = x + 5;
+  // bright white interior
+  ctx.fillStyle = '#f6f6f6'; ctx.fillRect(ix, sy, iw, shopH);
+  // warm light glow (stronger at night)
+  ctx.globalAlpha = dark ? 0.55 : 0.28;
+  const lg = ctx.createLinearGradient(ix, sy, ix, sy + shopH);
+  lg.addColorStop(0, 'rgba(255,252,210,1)'); lg.addColorStop(1, 'rgba(255,252,210,0)');
+  ctx.fillStyle = lg; ctx.fillRect(ix, sy, iw, shopH);
+  ctx.globalAlpha = 1;
+  // strip lights on ceiling
+  ctx.fillStyle = '#fffde4';
+  ctx.fillRect(ix + 5,  sy + 1, Math.round(iw * 0.27), 3);
+  ctx.fillRect(ix + Math.round(iw * 0.38), sy + 1, Math.round(iw * 0.27), 3);
+  ctx.fillRect(ix + Math.round(iw * 0.73), sy + 1, Math.round(iw * 0.24), 3);
+  // meat hanging from hooks
+  const mCols = ['#8b1a1a','#a0280a','#7b3a2a','#6b2418','#992e1a'];
+  const mN = Math.floor((iw - 30) / 25);
+  for (let m = 0; m < mN; m++) {
+    const mx = ix + 30 + m * 25;
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(mx - 1, sy + 4, 2, 7);
+    ctx.fillStyle = mCols[m % 5]; ctx.fillRect(mx - 5, sy + 11, 10, 14);
+    ctx.fillStyle = 'rgba(220,100,60,0.22)'; ctx.fillRect(mx - 3, sy + 11, 4, 14);
+  }
+  // cash person behind counter — drawn BEFORE counter so counter occludes lower body
+  const crx = ix + iw - 42;
+  const cpx = crx + 16;
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cpx - 4, sy + 3, 8, 10);
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cpx - 4, sy + 1, 8, 4);
+  ctx.fillStyle = '#15151a'; ctx.fillRect(cpx - 2, sy + 6, 1, 2); ctx.fillRect(cpx + 2, sy + 6, 1, 2);
+  ctx.fillStyle = '#7a3b2a'; ctx.fillRect(cpx - 1, sy + 10, 3, 1);
+  ctx.fillStyle = '#1e3a6e'; ctx.fillRect(cpx - 5, sy + 13, 10, 50);  // dark blue body extends below counter
+  // white tiled counter — drawn AFTER person, covers their lower body
+  ctx.fillStyle = '#e2e2e2'; ctx.fillRect(ix, sy + 38, iw, 22);
+  ctx.fillStyle = '#f3f3f3'; ctx.fillRect(ix, sy + 41, iw, 6);
+  ctx.strokeStyle = '#cacaca'; ctx.lineWidth = 0.5;
+  for (let tx2 = ix; tx2 < ix + iw; tx2 += 12) { ctx.beginPath(); ctx.moveTo(tx2, sy + 38); ctx.lineTo(tx2, sy + 60); ctx.stroke(); }
+  // cooks above counter (white uniform, chef cap, facing street)
+  const cooks = [ix + Math.round(iw * 0.18), ix + Math.round(iw * 0.50), ix + Math.round(iw * 0.76)];
+  for (const cx2 of cooks) {
+    const hTop = sy + 5;
+    ctx.fillStyle = '#1e3a6e'; ctx.fillRect(cx2 - 5, hTop, 10, 8);     // hat body (dark blue)
+    ctx.fillStyle = '#1a3360'; ctx.fillRect(cx2 - 7, hTop + 7, 14, 3); // hat brim
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx2 - 4, hTop + 9, 8, 9);  // head
+    ctx.fillStyle = '#15151a'; ctx.fillRect(cx2 - 2, hTop + 12, 1, 2); ctx.fillRect(cx2 + 2, hTop + 12, 1, 2);
+    ctx.fillStyle = '#7a3b2a'; ctx.fillRect(cx2 - 1, hTop + 15, 3, 1);
+    ctx.fillStyle = '#1e3a6e'; ctx.fillRect(cx2 - 6, hTop + 18, 12, 20); // torso (dark blue)
+    ctx.fillStyle = '#1e3a6e'; ctx.fillRect(cx2 - 12, sy + 34, 6, 3); ctx.fillRect(cx2 + 6, sy + 34, 6, 3); // arms
+    ctx.fillStyle = '#2a2a2a'; ctx.fillRect(cx2 - 8, sy + 31, 16, 5); // grill pan
+    ctx.fillStyle = '#e25822'; ctx.fillRect(cx2 - 7, sy + 32, 14, 2);
+  }
+  // cash register screen (right side of counter)
+  ctx.fillStyle = '#1a1a2a'; ctx.fillRect(crx + 2, sy + 26, 28, 18);
+  ctx.fillStyle = '#3ae870'; ctx.fillRect(crx + 4, sy + 28, 24, 14);
+  ctx.fillStyle = '#003300'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('PKR 850', crx + 16, sy + 38); ctx.textAlign = 'left';
+  // beggar sitting outside left of building
+  drawBeggar(x - 20, baseY);
+  // Pepsi fridge outside right of building (blue)
+  drawPepsiFridge(x + w + 10, baseY);
+  // awning
+  ctx.fillStyle = '#b71540'; ctx.fillRect(x - 2, sy - 8, w + 4, 12);
   ctx.fillStyle = '#fff'; for (let ax = x; ax < x + w; ax += 18) ctx.fillRect(ax, sy - 8, 9, 12);
-  ctx.fillStyle = '#7a1010'; ctx.fillRect(x + 8, sy - 34, w - 16, 24); // sign board
+  // sign board
+  ctx.fillStyle = '#7a1010'; ctx.fillRect(x + 8, sy - 34, w - 16, 24);
   ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 1; ctx.strokeRect(x + 8, sy - 34, w - 16, 24);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff5d0'; ctx.font = 'bold 15px sans-serif';
@@ -2326,44 +2408,215 @@ function drawCatTitle(cx, gy, col, t) {
   ctx.quadraticCurveTo(cx+16+Math.sin(t/220)*5,gy-18,cx+14+Math.sin(t/190)*4,gy-28+Math.cos(t/170)*5);
   ctx.stroke();
 }
-function drawSeatedUpper(cx, gy, shirt, t, type) {
-  type=type||'man';
-  const bob=Math.sin(t/600)*1.5;
-  if (type==='floral') {
-    ctx.fillStyle='#f3e2ec'; ctx.fillRect(cx-5,gy-46+bob,11,16);
-    const fc=['#e84393','#27ae60','#e67e22'];
-    for (let i=0;i<4;i++){ctx.fillStyle=fc[i%3]; circle(cx-2+i*3,gy-42+bob,1.3);}
-    ctx.fillStyle='#d63384'; ctx.fillRect(cx-6,gy-47+bob,13,3);
-    ctx.fillStyle='#d63384'; ctx.fillRect(cx-5,gy-53+bob,1,5); ctx.fillRect(cx+4,gy-53+bob,1,5);
-    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-3,gy-54+bob,7,8);
-    ctx.fillStyle='#d63384'; ctx.fillRect(cx-4,gy-57+bob,9,4);
-    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-9,gy-35+bob,4,3); ctx.fillRect(cx+5,gy-35+bob,4,3);
+function drawPersonOnChair(cx, gy, shirt, t, type) {
+  type = type || 'man';
+  const bob = Math.sin(t / 700) * 1.2;
+  // chair back (tallest, behind person head)
+  ctx.fillStyle = '#a8814f';
+  ctx.fillRect(cx - 5, gy - 50, 10, 3);
+  ctx.fillRect(cx - 4, gy - 47, 2, 25);
+  ctx.fillRect(cx + 2, gy - 47, 2, 25);
+  // chair seat + front legs
+  ctx.fillStyle = '#c9a86c'; ctx.fillRect(cx - 7, gy - 23, 14, 3);
+  ctx.fillStyle = '#a8814f';
+  ctx.fillRect(cx - 7, gy - 20, 3, 20); ctx.fillRect(cx + 4, gy - 20, 3, 20);
+  // lower legs + chappals (visible below table)
+  ctx.fillStyle = '#dcdcd2';
+  ctx.fillRect(cx - 5, gy - 23, 4, 15); ctx.fillRect(cx + 1, gy - 23, 4, 15);
+  ctx.fillStyle = '#2b2b2b';
+  ctx.fillRect(cx - 5, gy - 9, 5, 2); ctx.fillRect(cx, gy - 9, 5, 2);
+  // body + head anchored to seat level (bobs with eating)
+  const by = gy - 23 + bob;
+  if (type === 'floral') {
+    ctx.fillStyle = '#f3e2ec'; ctx.fillRect(cx - 5, by - 15, 10, 15);
+    const fc = ['#e84393', '#27ae60', '#e67e22'];
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = fc[i%3]; circle(cx - 2 + i*2, by - 10, 1.2); }
+    ctx.fillStyle = '#d63384'; ctx.fillRect(cx - 6, by - 16, 12, 3);
+    ctx.fillStyle = '#d63384'; ctx.fillRect(cx - 6, by - 15, 1, 9); ctx.fillRect(cx + 5, by - 15, 1, 9);
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 3, by - 24, 7, 8);
+    ctx.fillStyle = '#d63384'; ctx.fillRect(cx - 4, by - 27, 9, 4);
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 9, by - 5, 4, 2); ctx.fillRect(cx + 5, by - 5, 4, 2);
+    ctx.fillStyle = '#fff'; ctx.fillRect(cx - 2, by - 21, 2, 2); ctx.fillRect(cx + 1, by - 21, 2, 2);
+    ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 2, by - 21, 1, 1); ctx.fillRect(cx + 2, by - 21, 1, 1);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(cx - 2, by - 23, 2, 1); ctx.fillRect(cx + 1, by - 23, 2, 1);
+    ctx.fillStyle = '#7a3b2a'; ctx.fillRect(cx, by - 18, 2, 1);
   } else {
-    ctx.fillStyle=shirt; ctx.fillRect(cx-5,gy-46+bob,11,16);
-    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-3,gy-54+bob,7,8);
-    ctx.fillStyle='#1e1e1e'; ctx.fillRect(cx-4,gy-56+bob,9,3);
-    ctx.fillStyle='#1e1e1e'; ctx.fillRect(cx-4,gy-53+bob,1,4); ctx.fillRect(cx+3,gy-53+bob,1,4);
-    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-9,gy-35+bob,4,3); ctx.fillRect(cx+5,gy-35+bob,4,3);
+    ctx.fillStyle = shirt; ctx.fillRect(cx - 5, by - 15, 10, 15);
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 3, by - 24, 7, 8);
+    ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 4, by - 26, 9, 3);
+    ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 4, by - 23, 1, 4); ctx.fillRect(cx + 3, by - 23, 1, 4);
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 9, by - 5, 4, 2); ctx.fillRect(cx + 5, by - 5, 4, 2);
+    ctx.fillStyle = '#fff'; ctx.fillRect(cx - 2, by - 21, 2, 2); ctx.fillRect(cx + 1, by - 21, 2, 2);
+    ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 2, by - 21, 1, 1); ctx.fillRect(cx + 2, by - 21, 1, 1);
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(cx - 2, by - 23, 2, 1); ctx.fillRect(cx + 1, by - 23, 2, 1);
+    ctx.fillStyle = '#7a3b2a'; ctx.fillRect(cx, by - 18, 2, 1);
   }
-  ctx.fillStyle='#fff'; ctx.fillRect(cx-2,gy-51+bob,2,2); ctx.fillRect(cx+1,gy-51+bob,2,2);
-  ctx.fillStyle='#15151a'; ctx.fillRect(cx-2,gy-51+bob,1,1); ctx.fillRect(cx+2,gy-51+bob,1,1);
-  ctx.fillStyle='#3a2a1a'; ctx.fillRect(cx-2,gy-53+bob,2,1); ctx.fillRect(cx+1,gy-53+bob,2,1);
-  ctx.fillStyle='#7a3b2a'; ctx.fillRect(cx,gy-48+bob,2,1);
 }
 function drawTableGroup(cx, gy, leftShirt, leftType, rightShirt, rightType, t) {
-  ctx.fillStyle='#a8814f';
-  ctx.fillRect(cx-18,gy-62,8,3); ctx.fillRect(cx-16,gy-59,2,13); ctx.fillRect(cx-13,gy-59,2,13);
-  ctx.fillRect(cx+10,gy-62,8,3); ctx.fillRect(cx+12,gy-59,2,13); ctx.fillRect(cx+15,gy-59,2,13);
-  ctx.fillStyle='#7a5c2e';
-  ctx.fillRect(cx-20,gy-28,3,28); ctx.fillRect(cx+17,gy-28,3,28);
-  drawSeatedUpper(cx-13,gy,leftShirt,t,leftType);
-  drawSeatedUpper(cx+13,gy,rightShirt,t+240,rightType);
-  ctx.fillStyle='#c9a86c'; ctx.fillRect(cx-22,gy-32,44,10);
-  ctx.fillStyle='#b87d3c'; ctx.fillRect(cx-22,gy-32,44,3);
-  ctx.fillStyle='#f0ebe0'; circle(cx-8,gy-27,5); circle(cx+8,gy-27,5);
-  ctx.fillStyle='#e29b38'; circle(cx-8,gy-27,3);
-  ctx.fillStyle='#8b3a1e'; circle(cx+8,gy-27,3);
-  ctx.fillStyle='rgba(100,160,220,0.75)'; ctx.fillRect(cx-17,gy-32,4,8); ctx.fillRect(cx+13,gy-32,4,8);
+  // 1. Chair backs (behind heads — draw first)
+  ctx.fillStyle = '#a8814f';
+  ctx.fillRect(cx - 17, gy - 50, 8, 3); ctx.fillRect(cx - 16, gy - 47, 2, 25); ctx.fillRect(cx - 13, gy - 47, 2, 25);
+  ctx.fillRect(cx + 9, gy - 50, 8, 3);  ctx.fillRect(cx + 11, gy - 47, 2, 25); ctx.fillRect(cx + 14, gy - 47, 2, 25);
+  // 2. Table legs
+  ctx.fillStyle = '#7a5c2e';
+  ctx.fillRect(cx - 19, gy - 24, 3, 24); ctx.fillRect(cx + 16, gy - 24, 3, 24);
+  // 3. People on chairs (drawn before table surface so table hides their lower half)
+  drawPersonOnChair(cx - 14, gy, leftShirt, t, leftType);
+  drawPersonOnChair(cx + 14, gy, rightShirt, t + 300, rightType);
+  // 4. Table surface + apron (drawn LAST — creates seated-behind-table illusion)
+  ctx.fillStyle = '#c9a86c'; ctx.fillRect(cx - 19, gy - 28, 38, 4);
+  ctx.fillStyle = '#b87d3c'; ctx.fillRect(cx - 19, gy - 28, 38, 2);
+  ctx.fillStyle = '#a8814f'; ctx.fillRect(cx - 17, gy - 24, 34, 8);    // front apron hides lower body
+  ctx.fillStyle = '#8a6636'; ctx.fillRect(cx - 17, gy - 24, 34, 1);    // shadow line
+  // 5. Plates + food
+  ctx.fillStyle = '#f0ebe0'; circle(cx - 8, gy - 26, 5); circle(cx + 8, gy - 26, 5);
+  ctx.fillStyle = '#e29b38'; circle(cx - 8, gy - 26, 3);
+  ctx.fillStyle = '#8b3a1e'; circle(cx + 8, gy - 26, 3);
+  ctx.fillStyle = 'rgba(100,160,220,0.75)'; ctx.fillRect(cx - 15, gy - 28, 3, 5); ctx.fillRect(cx + 12, gy - 28, 3, 5);
+}
+function drawServer(cx, gy, t, idle) {
+  const ph = idle ? 0 : Math.sin(t / 150) * 2.5;
+  ctx.fillStyle = '#1a3565'; ctx.fillRect(cx - 5 + ph, gy - 16, 5, 16); ctx.fillRect(cx + 1 - ph, gy - 16, 5, 16);
+  ctx.fillStyle = '#1e1e2a'; ctx.fillRect(cx - 6 + ph, gy - 2, 6, 2); ctx.fillRect(cx + ph, gy - 2, 6, 2);
+  ctx.fillStyle = '#1a3565'; ctx.fillRect(cx - 6, gy - 31, 13, 15);
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 1, gy - 30, 3, 14); ctx.fillRect(cx - 1, gy - 31, 3, 3);
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 40, 8, 9);
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 5, gy - 42, 10, 3);
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 5, gy - 40, 1, 4); ctx.fillRect(cx + 4, gy - 40, 1, 4);
+  pedFace(cx, gy, 1);
+  ctx.fillStyle = '#c9a86c'; ctx.fillRect(cx + 5, gy - 26, 14, 2);      // tray
+  ctx.fillStyle = 'rgba(100,160,220,0.8)'; circle(cx + 10, gy - 28, 2.5); circle(cx + 14, gy - 28, 2);
+}
+function drawOwner(cx, gy, t) {
+  const panSide = Math.sin(t / 700) > 0 ? 1 : -1;
+  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 5, gy - 16, 5, 16); ctx.fillRect(cx + 1, gy - 16, 5, 16);
+  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(cx - 6, gy - 2, 6, 2); ctx.fillRect(cx, gy - 2, 6, 2);
+  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 6, gy - 31, 13, 15);
+  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(cx - 6, gy - 31, 2, 15);
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 40, 8, 9);
+  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 4, gy - 44, 8, 5);       // kufi topi
+  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 3, gy - 44, 7, 2);
+  ctx.fillStyle = '#2e1a0a'; ctx.fillRect(cx - 3, gy - 36, 7, 5);       // beard
+  ctx.fillRect(cx - 2, gy - 32, 5, 3); ctx.fillRect(cx - 1, gy - 30, 3, 2);
+  ctx.fillStyle = '#3a2010'; ctx.fillRect(cx - 3, gy - 38, 7, 2);       // mustache
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 3, gy - 37, 2, 2); ctx.fillRect(cx + 1, gy - 37, 2, 2);
+  ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 2, gy - 37, 1, 1); ctx.fillRect(cx + 2, gy - 37, 1, 1);
+  ctx.fillStyle = 'rgba(200,80,50,0.6)'; circle(cx + panSide * 3, gy - 35, 2.5);  // pan bulge
+}
+function drawStandingFan(cx, gy, t) {
+  // compact fan — head at face level (~gy-44)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(cx - 9, gy - 3, 18, 4);           // base plate
+  ctx.fillRect(cx - 2, gy - 42, 4, 40);           // short pole
+  ctx.fillStyle = '#2c2c2c'; ctx.fillRect(cx - 3, gy - 28, 6, 6); // tilt joint
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, gy - 46, 11, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, gy - 46, 8, 0, Math.PI * 2); ctx.stroke();
+  const angle = (t / 60) % (Math.PI * 2);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
+  for (let b = 0; b < 3; b++) {
+    const a = angle + b * Math.PI * 2 / 3;
+    ctx.beginPath(); ctx.moveTo(cx, gy - 46);
+    ctx.lineTo(cx + Math.cos(a) * 6, gy - 46 + Math.sin(a) * 6); ctx.stroke();
+  }
+  ctx.fillStyle = '#1a1a1a'; circle(cx, gy - 46, 2.5);
+}
+function drawDeliveryBike(cx, gy, t) {
+  ctx.save(); ctx.translate(cx, gy); ctx.rotate(-0.07);
+  wheel(-16, -9, 9); wheel(24, -9, 9);
+  ctx.strokeStyle = '#ff69b4'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-16, -9); ctx.lineTo(4, -24); ctx.lineTo(24, -9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4, -24); ctx.lineTo(12, -26); ctx.stroke();
+  ctx.fillStyle = '#555'; ctx.fillRect(-4, -26, 6, 2);
+  ctx.fillStyle = '#ff69b4'; ctx.fillRect(6, -28, 18, 4);
+  ctx.fillStyle = '#e8dada'; ctx.fillRect(-8, -32, 12, 10);
+  ctx.restore();
+  // FoodPanda delivery bag on rear rack
+  const bx = cx - 18, by = gy - 56;
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(bx, by, 34, 30);
+  ctx.fillStyle = '#e4e4e4'; ctx.fillRect(bx + 4, by + 3, 26, 22);
+  ctx.fillStyle = '#111'; circle(bx + 11, by + 11, 5); circle(bx + 23, by + 11, 5);
+  ctx.fillStyle = '#eee'; circle(bx + 12, by + 10, 2); circle(bx + 24, by + 10, 2);
+  ctx.fillStyle = '#333'; circle(bx + 17, by + 17, 2);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(bx + 14, by + 20); ctx.quadraticCurveTo(bx + 17, by + 23, bx + 20, by + 20); ctx.stroke();
+  ctx.fillStyle = '#e01060'; ctx.font = 'bold 5px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('foodpanda', bx + 17, by + 29); ctx.textAlign = 'left';
+}
+function drawDeliveryBoy(cx, gy) {
+  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 5, gy - 16, 5, 16); ctx.fillRect(cx + 1, gy - 16, 5, 16);
+  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(cx - 6, gy - 2, 6, 2); ctx.fillRect(cx, gy - 2, 6, 2);
+  ctx.fillStyle = '#ff69b4'; ctx.fillRect(cx - 6, gy - 31, 13, 19);
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 40, 8, 9);
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(cx - 5, gy - 42, 10, 3); ctx.fillRect(cx - 5, gy - 40, 1, 4); ctx.fillRect(cx + 4, gy - 40, 1, 4);
+  pedFace(cx, gy, 1);
+  ctx.fillStyle = '#ff69b4';
+  ctx.beginPath(); ctx.arc(cx, gy - 44, 7, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = 'rgba(200,220,255,0.45)'; ctx.fillRect(cx - 4, gy - 44, 8, 4);
+}
+function drawWalkingCat(cx, gy, col, t) {
+  const s = Math.sin(t / 165);
+  // tail at back-left, sways gently with stride
+  ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - 7, gy - 10);
+  ctx.quadraticCurveTo(cx - 17 + s * 1.5, gy - 13, cx - 15 + s, gy - 26 + s * 2);
+  ctx.stroke();
+  // body horizontal
+  ctx.fillStyle = col;
+  ctx.fillRect(cx - 7, gy - 14, 18, 8);
+  ctx.fillRect(cx + 9, gy - 17, 5, 5);   // neck
+  // head at front (right side)
+  ctx.fillRect(cx + 8, gy - 22, 9, 9);
+  // ears
+  ctx.beginPath(); ctx.moveTo(cx+8,gy-21); ctx.lineTo(cx+6,gy-27); ctx.lineTo(cx+12,gy-21); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx+13,gy-21); ctx.lineTo(cx+15,gy-27); ctx.lineTo(cx+17,gy-21); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f9a8d4';
+  ctx.beginPath(); ctx.moveTo(cx+9,gy-21); ctx.lineTo(cx+7,gy-25); ctx.lineTo(cx+12,gy-21); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx+13,gy-21); ctx.lineTo(cx+15,gy-25); ctx.lineTo(cx+17,gy-21); ctx.closePath(); ctx.fill();
+  // eye (side-facing)
+  const blink2 = (t % 3600) < 110;
+  if (blink2) { ctx.fillStyle = col; ctx.fillRect(cx+10, gy-18, 4, 1); }
+  else { ctx.fillStyle = '#4ade80'; ctx.fillRect(cx+10, gy-19, 4, 4); ctx.fillStyle = '#15151a'; ctx.fillRect(cx+11, gy-18, 2, 3); }
+  // nose + whiskers (pointing forward, right)
+  ctx.fillStyle = '#f9a8d4'; ctx.fillRect(cx+15, gy-14, 1, 1);
+  ctx.strokeStyle = '#aaa'; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(cx+15, gy-14); ctx.lineTo(cx+21, gy-13); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+15, gy-14); ctx.lineTo(cx+21, gy-15); ctx.stroke();
+  // 4 legs with stride animation (diagonal pairs)
+  ctx.fillStyle = col;
+  const stride = s * 3.5;
+  ctx.fillRect(cx + 4, gy - 7, 3, 7 + stride);   // front-right
+  ctx.fillRect(cx + 8, gy - 7, 3, 7 - stride);   // front-left
+  ctx.fillRect(cx - 5, gy - 7, 3, 7 - stride);   // rear-right
+  ctx.fillRect(cx + 0, gy - 7, 3, 7 + stride);   // rear-left
+}
+function drawWalkingCatBrown(t, baseY) {
+  const cycleMs = 20000;
+  const catX = (t % cycleMs) / cycleMs * (W + 140) - 70;
+  if (catX < -40 || catX > W + 25) return;
+  drawWalkingCat(catX, baseY, '#8b5a2b', t);
+  // bubble: 1.5s visible, 1s hidden, alternating 'meow?' / 'meow'
+  const bubCycle = (t / 1000) % 5;
+  let phrase = null, ba = 0;
+  if (bubCycle < 1.5) {
+    phrase = 'meow?';
+    ba = bubCycle < 0.15 ? bubCycle / 0.15 : bubCycle > 1.35 ? (1.5 - bubCycle) / 0.15 : 1;
+  } else if (bubCycle >= 2.5 && bubCycle < 4.0) {
+    const p = bubCycle - 2.5;
+    phrase = 'meow';
+    ba = p < 0.15 ? p / 0.15 : p > 1.35 ? (1.5 - p) / 0.15 : 1;
+  }
+  if (phrase && ba > 0) {
+    ctx.font = '9px monospace'; ctx.textAlign = 'center';
+    const tw = ctx.measureText(phrase).width + 10;
+    ctx.globalAlpha = ba * 0.95;
+    ctx.fillStyle = '#fffbf0'; ctx.fillRect(catX - tw / 2, baseY - 50, tw, 16);
+    ctx.strokeStyle = '#c9a86c'; ctx.lineWidth = 1; ctx.strokeRect(catX - tw / 2, baseY - 50, tw, 16);
+    ctx.fillStyle = '#2c2c2c'; ctx.fillText(phrase, catX, baseY - 39);
+    ctx.fillStyle = '#fffbf0'; ctx.beginPath(); ctx.moveTo(catX - 3, baseY - 34); ctx.lineTo(catX + 3, baseY - 34); ctx.lineTo(catX, baseY - 29); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
 }
 function drawTitleParkedBike(cx, gy, col) {
   ctx.save(); ctx.translate(cx,gy); ctx.rotate(-0.07);
@@ -2415,8 +2668,9 @@ function drawTitle() {
   const titleEl = (t - titleStart) / 1000;
   const titleNF = Math.min(1, titleEl / 70);
   const baseY = H - 56;
+  const jw = 200, jx = W / 2 - jw / 2 + 70;
 
-  // sky gradient: afternoon blue → golden dusk → night
+  // ── SKY ──
   const sg = ctx.createLinearGradient(0, 0, 0, H);
   if (titleNF < 0.5) {
     const f = titleNF / 0.5;
@@ -2429,21 +2683,32 @@ function drawTitle() {
   }
   ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
 
-  // sun sinking toward left horizon
+  // ── SUN ──
   const sunX = W * 0.13;
   const sunY = H * 0.18 + titleNF * H * 0.80;
   const sunVis = Math.max(0, 1 - Math.max(0, (sunY - (baseY - 24)) / 55));
   if (sunVis > 0) {
     const sunHex = titleNF < 0.35 ? 0xffd86b : titleNF < 0.65 ? 0xf47020 : 0xe84020;
-    const sunStr = '#' + sunHex.toString(16).padStart(6, '0');
-    ctx.fillStyle = sunStr;
+    ctx.fillStyle = '#' + sunHex.toString(16).padStart(6, '0');
     ctx.globalAlpha = sunVis * 0.18; circle(sunX, sunY, 72);
     ctx.globalAlpha = sunVis * 0.09; circle(sunX, sunY, 98);
     ctx.globalAlpha = sunVis; circle(sunX, sunY, 32);
     ctx.globalAlpha = 1;
   }
 
-  // stars appear at dusk
+  // ── CRESCENT MOON (top right, rises with night) ──
+  if (titleNF > 0.55) {
+    const ma = Math.min(1, (titleNF - 0.55) / 0.22);
+    const mx = W * 0.89, my = H * 0.07 - (1 - ma) * 30;
+    ctx.globalAlpha = ma;
+    ctx.fillStyle = '#ffe96a'; circle(mx, my, 16);
+    // bite out of it with sky-matching color
+    const skyTop = titleNF > 0.9 ? '#0c0e26' : '#1a1230';
+    ctx.fillStyle = skyTop; circle(mx + 10, my - 5, 13);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── STARS ──
   if (titleNF > 0.4) {
     const sa = Math.min(1, (titleNF - 0.4) * 3);
     for (let i = 0; i < 24; i++) {
@@ -2454,94 +2719,152 @@ function drawTitle() {
     ctx.globalAlpha = 1;
   }
 
-  // back skyline (colour shifts at night)
+  // ── BACK SKYLINE ──
   ctx.fillStyle = titleNF > 0.55 ? '#1e2240' : '#b9cdba';
   for (let i = 0; i < Math.ceil(W / 110) + 1; i++) {
     const hh = 80 + (i * 67) % 90;
     ctx.fillRect(i * 110, H - 150 - hh + 40, 90, hh + 150);
   }
 
-  // street lamps (light up when dusk arrives)
+  // ── STREET LAMPS ──
   drawTitleLamp(Math.round(W * 0.27), baseY, titleNF);
-  drawTitleLamp(Math.round(W * 0.80), baseY, titleNF);
+  drawTitleLamp(Math.round(W * 0.93), baseY, titleNF);
 
-  // ground + road lines
+  // ── GROUND + STILL ROAD MARKINGS ──
   ctx.fillStyle = titleNF > 0.5 ? '#8e8880' : '#b9b1a3';
   ctx.fillRect(0, baseY, W, 16);
   ctx.fillStyle = titleNF > 0.5 ? '#3a3638' : '#555259';
   ctx.fillRect(0, baseY + 16, W, H);
   ctx.fillStyle = '#d9d090';
-  for (let i = 0; i < W; i += 80) ctx.fillRect(i + (Math.floor(t / 40) % 80), baseY + 40, 40, 5);
+  for (let i = 0; i < W; i += 80) ctx.fillRect(i, baseY + 40, 40, 5);  // static
 
-  // parked vehicles (left side)
-  const pvX = Math.round(W * 0.05);
-  drawTitleParkedCar(pvX + 34, baseY, '#c0392b');
-  drawTitleParkedBike(pvX + 110, baseY, '#1abc9c');
-  drawTitleParkedBike(pvX + 146, baseY, '#f39c12');
-  drawCatTitle(pvX + 180, baseY, '#888888', t + 1000);   // grey cat near bikes
+  // ── LEFT PARKING: 2 bikes only ──
+  const pvX = Math.round(W * 0.04);
+  drawTitleParkedBike(pvX + 14, baseY, '#1abc9c');
+  drawTitleParkedBike(pvX + 50, baseY, '#f39c12');
+  drawCatTitle(pvX + 84, baseY, '#888888', t + 1000);
 
-  // Jannat BBQ building
-  const jw = 200, jx = W / 2 - jw / 2 + 70;
+  // ── LEFT SEATING: 2 family tables (cloth enclosure) + 1 gents table ──
+  const tableX0 = jx - 285;
+  const areaCol = titleNF > 0.5 ? '#ffd86b' : '#2c3e50';
+
+  // family area cloth enclosure (partial height white cloth)
+  const fLeft = tableX0 - 22, fRight = tableX0 + 128, fH = 34;
+  ctx.globalAlpha = 0.82; ctx.fillStyle = '#e8e8e8';
+  ctx.fillRect(fLeft, baseY - fH, fRight - fLeft, fH);
+  ctx.globalAlpha = 1; ctx.fillStyle = '#c8c8c8';
+  ctx.fillRect(fLeft, baseY - fH, fRight - fLeft, 2);
+  ctx.fillStyle = '#8a8a8a';
+  ctx.fillRect(fLeft - 2, baseY - fH - 7, 4, fH + 7);
+  ctx.fillRect(fRight - 2, baseY - fH - 7, 4, fH + 7);
+  ctx.fillRect((fLeft + fRight) / 2 - 2, baseY - fH - 5, 4, fH + 5);
+  ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = areaCol;
+  ctx.fillText('FAMILY AREA', (fLeft + fRight) / 2, baseY - fH - 12);
+  ctx.textAlign = 'left';
+  drawTableGroup(tableX0,       baseY, '#6c3483', 'man', '#e84393', 'floral', t);
+  drawTableGroup(tableX0 + 55,  baseY, '#2ecc71', 'man', '#c0392b', 'floral', t + 90);
+  drawServer(tableX0 + 82, baseY, t, false);
+
+  // small divider post between family and gents
+  ctx.fillStyle = '#8a8a8a'; ctx.fillRect(tableX0 + 130, baseY - 42, 4, 42);
+
+  // gents area (1 table, open)
+  ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = areaCol;
+  ctx.fillText('GENTS AREA', tableX0 + 168, baseY - 52);
+  ctx.textAlign = 'left';
+  drawTableGroup(tableX0 + 155, baseY, '#16607a', 'man', '#2980b9', 'man', t + 180);
+
+  drawCatTitle(tableX0 - 24, baseY, '#b58a5a', t);
+
+  // "hmm yummy alhamdulillah" bubble over family table diner
+  const bphase = (t / 1000) % 10;
+  if (bphase < 5.5) {
+    const ba = bphase < 0.4 ? bphase / 0.4 : bphase > 5.1 ? (5.5 - bphase) / 0.4 : 1;
+    ctx.globalAlpha = ba; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+    const btx = tableX0 + 5, bty = baseY - 70;
+    const bwm = Math.max(ctx.measureText('hmm yummy').width, ctx.measureText('alhamdulillah!').width) + 10;
+    ctx.fillStyle = '#fffbf0'; ctx.fillRect(btx - bwm / 2, bty - 28, bwm, 30);
+    ctx.strokeStyle = '#c9a86c'; ctx.lineWidth = 1; ctx.strokeRect(btx - bwm / 2, bty - 28, bwm, 30);
+    ctx.fillStyle = '#2c2c2c'; ctx.fillText('hmm yummy', btx, bty - 15); ctx.fillText('alhamdulillah!', btx, bty - 3);
+    ctx.fillStyle = '#fffbf0'; ctx.beginPath(); ctx.moveTo(btx - 4, bty + 2); ctx.lineTo(btx + 4, bty + 2); ctx.lineTo(btx, bty + 10); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
+
+  // ── JANNAT BBQ BUILDING ──
   drawJannatFacade(jx, baseY, jw, 250, titleNF > 0.5);
 
-  // BBQ grill + smoke
-  const gx = jx - 26;
-  ctx.fillStyle = '#3a3a3a'; ctx.fillRect(gx, baseY - 26, 52, 14);
-  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(gx, baseY - 14, 52, 14);
-  ctx.fillStyle = '#ff5e3a'; for (let i = 0; i < 6; i++) ctx.fillRect(gx + 4 + i * 8, baseY - 24, 5, 4);
-  ctx.fillStyle = '#6d4c2f'; for (let i = 0; i < 5; i++) ctx.fillRect(gx + 5 + i * 9, baseY - 27, 7, 3);
-  ctx.globalAlpha = 0.5; ctx.fillStyle = '#cfcfcf';
-  for (let i = 0; i < 5; i++) { const ph = (t / 18 + i * 40) % 90; circle(gx + 8 + i * 9 + Math.sin(t / 300 + i) * 6, baseY - 30 - ph, 4 + ph / 28); }
+  // ── WIDE BBQ GRILL + SMOKE + FAN ──
+  const gx = jx - 50;
+  ctx.fillStyle = '#3a3a3a'; ctx.fillRect(gx, baseY - 26, 90, 14);
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(gx, baseY - 14, 90, 14);
+  ctx.fillStyle = '#ff5e3a'; for (let i = 0; i < 10; i++) ctx.fillRect(gx + 4 + i * 8, baseY - 24, 5, 4);
+  ctx.fillStyle = '#6d4c2f'; for (let i = 0; i < 9; i++) ctx.fillRect(gx + 5 + i * 9, baseY - 27, 7, 3);
+  for (let src = 0; src < 7; src++) {
+    const ox = gx + 7 + src * 12;
+    for (let i = 0; i < 6; i++) {
+      const sy2 = (t / 700 * 22 + i * 14 + src * 8) % 110;
+      ctx.globalAlpha = 0.70 * (1 - sy2 / 110);
+      ctx.fillStyle = sy2 < 30 ? '#3a3a3a' : '#6a6a6a';
+      circle(ox + Math.sin(t / 500 + i + src) * 9, baseY - 32 - sy2, 4 + sy2 * 0.09);
+    }
+  }
   ctx.globalAlpha = 1;
-  drawPedestrian(gx + 26, baseY, '#9b3d12', 0, true, 'man');   // cook
-  drawCatTitle(gx + 58, baseY, '#1a1a1a', t + 500);            // black cat near grill
-
-  // tables with eating people (family + gents area)
-  const tableX0 = jx - 210;
-  ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-  ctx.fillStyle = titleNF > 0.5 ? '#ffd86b' : '#2c3e50';
-  ctx.fillText('FAMILY AREA', tableX0 + 22, baseY - 48);
-  ctx.fillText('GENTS AREA',  tableX0 + 105, baseY - 48);
-  ctx.textAlign = 'left';
-  drawTableGroup(tableX0,       baseY, '#16607a', 'man', '#e84393', 'floral', t);
-  drawTableGroup(tableX0 + 52,  baseY, '#2ecc71', 'man', '#c0392b', 'man',    t + 80);
-  drawTableGroup(tableX0 + 104, baseY, '#8e44ad', 'man', '#e67e22', 'floral', t + 160);
-  drawCatTitle(tableX0 + 136, baseY, '#b58a5a', t);            // tabby near tables
-
-  // main crowd near Jannat (slight sway)
-  const crowd = [['man','#34495e'],['floral','#e84393'],['man','#16607a'],['floral','#8e44ad'],['man','#5b3a29'],['man','#7f8c8d'],['floral','#c0392b']];
-  for (let i = 0; i < crowd.length; i++) {
-    const ccx = jx - 120 + i * 26 + Math.sin(t / 600 + i) * 2;
-    drawPedestrian(ccx, baseY, crowd[i][1], t / 150 + i * 9, false, crowd[i][0]);
+  drawPedestrian(gx + 44, baseY, '#9b3d12', 0, true, 'man');   // cook AT grill
+  drawStandingFan(gx + 92, baseY, t);
+  drawCatTitle(gx - 16, baseY, '#1a1a1a', t + 500);
+  // owner paces left-to-right within the seating area
+  const ownerPeriod = 7500;
+  const ownerPhase = (t % ownerPeriod) / ownerPeriod;
+  const ownerBounce = ownerPhase < 0.5 ? ownerPhase * 2 : (1 - ownerPhase) * 2;
+  const ownerX = Math.round(fLeft + 10 + ownerBounce * (tableX0 + 168 - fLeft - 20));
+  if (ownerPhase >= 0.5) {
+    ctx.save(); ctx.translate(ownerX * 2, 0); ctx.scale(-1, 1);
+    drawOwner(ownerX, baseY, t);
+    ctx.restore();
+  } else {
+    drawOwner(ownerX, baseY, t);
   }
 
-  // extra walkers drifting across the scene
-  const extraW = [
-    { base:0.03, spd:0.80, col:'#e67e22', type:'man',    idx:0 },
-    { base:0.09, spd:0.65, col:'#9b59b6', type:'floral', idx:1 },
-    { base:0.15, spd:0.90, col:'#1abc9c', type:'man',    idx:2 },
-    { base:0.20, spd:0.75, col:'#e84393', type:'floral', idx:3 },
-    { base:0.67, spd:0.70, col:'#2980b9', type:'man',    idx:4 },
-    { base:0.73, spd:1.00, col:'#c0392b', type:'man',    idx:5 },
-    { base:0.79, spd:0.85, col:'#27ae60', type:'floral', idx:6 },
-    { base:0.86, spd:0.65, col:'#f39c12', type:'man',    idx:7 },
+  // ── SMALL CROWD — all LEFT of grill (idle, no leg twitch) ──
+  const crowd = [['man','#34495e'],['floral','#e84393'],['man','#16607a']];
+  for (let i = 0; i < crowd.length; i++) {
+    const ccx = jx - 130 + i * 24 + Math.sin(t / 800 + i) * 1.5;
+    drawPedestrian(ccx, baseY, crowd[i][1], 0, true, crowd[i][0]);
+  }
+
+  // ── RIGHT PARKING: car + teal bike + delivery bike ──
+  const rpX = jx + jw + 30;
+  drawTitleParkedBike(rpX, baseY, '#1abc9c');
+  drawTitleParkedCar(rpX + 55, baseY, '#c0392b');
+  if (rpX + 160 < W) {
+    drawDeliveryBike(rpX + 148, baseY, t);
+    drawDeliveryBoy(rpX + 182, baseY);
+  }
+
+  // ── 2 WALKERS crossing the scene ──
+  const walkers = [
+    { base: 0.05, spd: 0.80, col: '#e67e22', type: 'man'    },
+    { base: 0.15, spd: 0.65, col: '#e84393', type: 'floral' },
   ];
-  for (const w of extraW) {
+  for (const w of walkers) {
     const wx = ((w.base * W + t / 50 * w.spd) % (W + 80)) - 40;
     if (wx < -30 || wx > W + 10) continue;
-    drawPedestrian(wx, baseY, w.col, t * w.spd / 150 + w.idx * 8, false, w.type);
+    drawPedestrian(wx, baseY, w.col, t * w.spd / 150, false, w.type);
   }
 
-  // cream cat far right
-  drawCatTitle(Math.round(W * 0.87), baseY, '#f5f5dc', t + 2000);
+  // ── BROWN WALKING CAT ──
+  drawWalkingCatBrown(t, baseY);
 
-  // speech bubbles (Karachi chatter, cycling phrases)
+  // ── CREAM CAT far right ──
+  drawCatTitle(W - 30, baseY, '#f5f5dc', t + 2000);
+
+  // ── SPEECH BUBBLES (pinned over real people) ──
   const chatter = [
-    { x: W * 0.10, y: baseY - 62, text: 'Yaar chai piyo!' },
-    { x: jx + 30,  y: baseY - 90, text: 'Seekh aur do!' },
-    { x: W * 0.30, y: baseY - 65, text: 'Kahan ja raha hai?' },
-    { x: W * 0.77, y: baseY - 62, text: 'Aaj bhi garmi hai' },
-    { x: W * 0.53, y: baseY - 78, text: 'Biryani lao bhai!' },
+    { x: tableX0 + 82,    y: baseY - 66, text: 'Yaar chai piyo!' },     // server between family tables
+    { x: jx + 28,         y: baseY - 88, text: 'Seekh aur do!' },        // crowd near entrance
+    { x: tableX0 + 155,   y: baseY - 66, text: 'Kahan ja raha?' },       // gents table person
+    { x: tableX0 + 58,    y: baseY - 72, text: 'Aaj bhi garmi hai!' },   // owner (walking in seating area)
+    { x: jx - 106,        y: baseY - 66, text: 'Biryani lao!' },         // crowd[1]
   ];
   ctx.font = '10px monospace';
   for (let ci = 0; ci < chatter.length; ci++) {
@@ -2554,12 +2877,11 @@ function drawTitle() {
     ctx.fillStyle = '#fffbf0'; ctx.fillRect(cl.x - tw / 2, cl.y - 14, tw, 17);
     ctx.strokeStyle = '#c9a86c'; ctx.lineWidth = 1; ctx.strokeRect(cl.x - tw / 2, cl.y - 14, tw, 17);
     ctx.fillStyle = '#2c2c2c'; ctx.fillText(cl.text, cl.x - tw / 2 + 6, cl.y);
-    ctx.fillStyle = '#fffbf0';
-    ctx.beginPath(); ctx.moveTo(cl.x - 4, cl.y + 3); ctx.lineTo(cl.x + 4, cl.y + 3); ctx.lineTo(cl.x, cl.y + 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fffbf0'; ctx.beginPath(); ctx.moveTo(cl.x - 4, cl.y + 3); ctx.lineTo(cl.x + 4, cl.y + 3); ctx.lineTo(cl.x, cl.y + 10); ctx.closePath(); ctx.fill();
     ctx.globalAlpha = 1;
   }
 
-  // title text
+  // ── TITLE TEXT ──
   ctx.textAlign = 'center';
   ctx.font = 'bold 44px monospace';
   ctx.fillStyle = '#1e272e'; ctx.fillText('BARA AYA', W / 2 + 3, 92);
@@ -2575,6 +2897,11 @@ function drawTitle() {
   }
   ctx.font = 'bold 14px monospace'; ctx.fillStyle = titleNF > 0.5 ? '#aaa8b8' : '#2c3e50';
   ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 250);
+  // easy mode toggle
+  const emCol = easyMode ? '#2ecc71' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
+  ctx.fillStyle = emCol;
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText((easyMode ? '[✓] EASY MODE  ON' : '[ ] EASY MODE  OFF') + '  — can\'t die  (press E)', W / 2, 275);
   ctx.textAlign = 'left';
 }
 
@@ -2821,7 +3148,13 @@ bindTouchBtn('btnJ', 'Space');
 // tap anywhere on the canvas to start / restart on touch devices
 cv.addEventListener('pointerdown', e => {
   initAudio();
-  if (state === 'title' || state === 'gameover' || state === 'win') startGame();
+  if (state === 'title') {
+    // check if tap lands on the easy mode toggle (y≈275 in canvas coords)
+    const rect = cv.getBoundingClientRect();
+    const cy2 = (e.clientY - rect.top) / rect.height * cv.height;
+    if (cy2 > 263 && cy2 < 288) { easyMode = !easyMode; return; }
+    startGame();
+  } else if (state === 'gameover' || state === 'win') startGame();
   else if (state === 'credits') { state = 'title'; titleStart = performance.now(); }
 });
 
