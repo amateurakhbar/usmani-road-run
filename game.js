@@ -499,7 +499,7 @@ function buildLevel() {
   treeX.forEach((tx, i) => decors.push({ kind: 'tree', x: tx, size: 0.65 + ((i * 0.41) % 1) * 0.85 }));
 
   // streetlights: white from Maskan to Disco, warm from Disco to the bridge
-  for (let x = 500; x < LEN - 300; x += 420) decors.push({ kind: 'lamp', x, warm: x >= 6900 });
+  for (let x = 500; x < LEN - 300; x += 220) decors.push({ kind: 'lamp', x, warm: x >= 6900 });
 }
 buildLevel();
 
@@ -1744,7 +1744,18 @@ function drawDecor(d, dark) {
     const col = d.warm ? '#ffcf87' : '#eaf4ff';                 // warm after Disco, white before
     ctx.fillStyle = off ? '#333' : (lit ? col : '#8a93a0');
     ctx.fillRect(x + 22, lgy - 128, 10, 8);
-    if (lit) { ctx.globalAlpha = 0.14 + 0.14 * nightFactor(); ctx.fillStyle = col; circle(x + 27, lgy - 122, 19); ctx.globalAlpha = 1; }
+    if (lit) {
+      const nfL = nightFactor();
+      // large bulb halo
+      ctx.globalAlpha = 0.55 + 0.20 * nfL;
+      ctx.fillStyle = col; circle(x + 27, lgy - 123, 46);
+      // downward light cone to ground
+      ctx.globalAlpha = 0.22 + 0.18 * nfL;
+      const cg = ctx.createRadialGradient(x + 27, lgy - 118, 0, x + 27, lgy, 95);
+      cg.addColorStop(0, col); cg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = cg; ctx.fillRect(x - 65, lgy - 118, 180, 118);
+      ctx.globalAlpha = 1;
+    }
   } else if (d.kind === 'kepole') {
     ctx.fillStyle = '#5d4037'; ctx.fillRect(x, GROUND_Y - 160, 8, 160);
     ctx.fillRect(x - 22, GROUND_Y - 152, 52, 4);
@@ -2178,9 +2189,9 @@ function drawBanner(b) {
 
 function drawDarkness() {
   const pxx = px(player.x + player.w / 2), pyy = player.y + player.h / 2;
-  const g = ctx.createRadialGradient(pxx, pyy, 60, pxx, pyy, 260);
+  const g = ctx.createRadialGradient(pxx, pyy, 100, pxx, pyy, 420);
   g.addColorStop(0, 'rgba(5,5,20,0)');
-  g.addColorStop(1, 'rgba(5,5,20,0.88)');
+  g.addColorStop(1, 'rgba(5,5,20,0.48)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
 
@@ -2693,10 +2704,15 @@ function drawTitleLamp(lx, baseY, nf) {
   if (nf > 0.22) {
     const la=Math.min(1,(nf-0.22)*4);
     ctx.fillStyle='#fff8c4'; ctx.fillRect(lx+19,baseY-107,8,12);
-    ctx.globalAlpha=la*0.22;
-    const g=ctx.createRadialGradient(lx+23,baseY-101,0,lx+23,baseY-101,95);
+    ctx.globalAlpha=la*0.40;
+    const g=ctx.createRadialGradient(lx+23,baseY-101,0,lx+23,baseY-101,130);
     g.addColorStop(0,'#fde68a'); g.addColorStop(1,'rgba(253,230,138,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(lx+23,baseY-101,95,0,7); ctx.fill();
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(lx+23,baseY-101,130,0,7); ctx.fill();
+    // downward ground cone
+    ctx.globalAlpha=la*0.18;
+    const gc=ctx.createRadialGradient(lx+23,baseY-90,0,lx+23,baseY,110);
+    gc.addColorStop(0,'#fde68a'); gc.addColorStop(1,'rgba(253,230,138,0)');
+    ctx.fillStyle=gc; ctx.fillRect(lx-80,baseY-90,200,90);
     ctx.globalAlpha=1;
   }
 }
@@ -2765,7 +2781,10 @@ function drawTitle() {
   }
 
   // ── STREET LAMPS ──
+  drawTitleLamp(Math.round(W * 0.08), baseY, titleNF);
   drawTitleLamp(Math.round(W * 0.27), baseY, titleNF);
+  drawTitleLamp(Math.round(W * 0.50), baseY, titleNF);
+  drawTitleLamp(Math.round(W * 0.70), baseY, titleNF);
   drawTitleLamp(Math.round(W * 0.93), baseY, titleNF);
 
   // ── GROUND + STILL ROAD MARKINGS ──
