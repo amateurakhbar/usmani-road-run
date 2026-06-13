@@ -51,6 +51,22 @@
   body.lefty #btnJ { right: auto; left: max(3vw, env(safe-area-inset-left)); }
   body.lefty #btnR { left: auto; right: max(3vw, env(safe-area-inset-right)); }
   body.lefty #btnL { left: auto; right: calc(max(3vw, env(safe-area-inset-right)) + 88px); }
+  /* Phones (small landscape screens, e.g. iPhone): shrink the buttons and tuck
+     them right into the corners so they don't sit over the running player. */
+  @media (max-height: 480px) {
+    .tbtn {
+      width: 50px; height: 50px;
+      font-size: 21px; border-width: 2px;
+      bottom: max(5px, env(safe-area-inset-bottom));
+      background: rgba(30,30,45,.34);
+    }
+    #btnL { left: max(5px, env(safe-area-inset-left)); }
+    #btnR { left: calc(max(5px, env(safe-area-inset-left)) + 56px); }
+    #btnJ { right: max(5px, env(safe-area-inset-right)); width: 58px; height: 58px; }
+    body.lefty #btnJ { right: auto; left: max(5px, env(safe-area-inset-left)); }
+    body.lefty #btnR { left: auto; right: max(5px, env(safe-area-inset-right)); }
+    body.lefty #btnL { left: auto; right: calc(max(5px, env(safe-area-inset-right)) + 56px); }
+  }
   #btnFS {
     position: fixed;
     top: max(8px, env(safe-area-inset-top));
@@ -128,7 +144,7 @@
   </div>
 </div>
 <div id="rotate">&#128241; Phone ghoomao &mdash; landscape mein zyada maza hai</div>
-<script src="analytics.js?v=20260613zh"></script>
-<script src="game.js?v=20260613zh"></script>
+<script src="analytics.js?v=20260613zi"></script>
+<script src="game.js?v=20260613zi"></script>
 </body>
 </html>
