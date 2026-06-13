@@ -65,16 +65,33 @@ function tryAutoFullscreen() {
   if (fsAutoTried) return; fsAutoTried = true;
   if (!fsElement() && fsSupported() && matchMedia('(pointer: coarse)').matches) enterFullscreen();
 }
+// iPhone has NO in-page Fullscreen API (only iPad does). On iPhone the button
+// instead explains "Add to Home Screen", which launches with zero browser chrome.
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = (navigator.standalone === true) || matchMedia('(display-mode: standalone)').matches;
+const fsBtnEnabled = !isStandalone && (fsSupported() || isIOS);
+const fsHint = document.getElementById('fsHint');
+function showFsHint() { if (fsHint) fsHint.style.display = 'flex'; }
+function hideFsHint() { if (fsHint) fsHint.style.display = 'none'; }
 const fsBtn = document.getElementById('btnFS');
 if (fsBtn) {
-  if (!fsSupported()) fsBtn.style.display = 'none';        // e.g. iPhone Safari — hide non-functional button
+  if (!fsBtnEnabled) fsBtn.style.display = 'none';         // already fullscreen (home-screen app), or no path to it
   else {
-    const press = e => { e.preventDefault(); e.stopPropagation(); initAudio(); toggleFullscreen(); };
+    const press = e => {
+      e.preventDefault(); e.stopPropagation(); initAudio();
+      if (fsSupported()) toggleFullscreen();               // iPad / Android / desktop: real fullscreen
+      else showFsHint();                                    // iPhone: guide to Add to Home Screen
+    };
     fsBtn.addEventListener('click', press);
     const syncIcon = () => { fsBtn.textContent = fsElement() ? '✕' : '⛶'; fitSoon(); };
     document.addEventListener('fullscreenchange', syncIcon);
     document.addEventListener('webkitfullscreenchange', syncIcon);
   }
+}
+if (fsHint) {
+  const closeBtn = document.getElementById('fsHintClose');
+  if (closeBtn) closeBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); hideFsHint(); });
+  fsHint.addEventListener('click', e => { if (e.target === fsHint) hideFsHint(); });   // tap backdrop to dismiss
 }
 
 // ---------- sprite images (real photos used as sprites) ----------
@@ -3384,7 +3401,7 @@ function loop(t) {
   while (acc >= 16.666) { step(); acc -= 16.666; }
   draw();
   // fullscreen toggle button: only on non-play screens (keeps the HUD corners clear)
-  if (fsBtn && fsSupported()) {
+  if (fsBtn && fsBtnEnabled) {
     const disp = (state === 'play') ? 'none' : 'flex';
     if (fsBtn.style.display !== disp) fsBtn.style.display = disp;
   }

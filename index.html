@@ -66,6 +66,36 @@
     -webkit-tap-highlight-color: transparent;
   }
   #btnFS:active { background: rgba(255,211,42,.35); }
+  #fsHint {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(8,8,16,.78);
+    z-index: 50;
+    align-items: center; justify-content: center;
+    padding: 16px;
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  }
+  #fsHint .card {
+    max-width: 340px; width: 100%;
+    background: #1f2430; color: #ecf0f1;
+    border: 2px solid #ffd32a; border-radius: 14px;
+    padding: 20px 22px;
+    font-family: monospace;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  #fsHint h2 { margin: 0 0 10px; font-size: 18px; color: #ffd32a; }
+  #fsHint p { margin: 8px 0; font-size: 13px; line-height: 1.5; }
+  #fsHint ol { margin: 10px 0; padding-left: 20px; font-size: 13px; line-height: 1.7; }
+  #fsHint b { color: #ffd32a; }
+  #fsHint .note { color: #9aa4b2; font-size: 12px; }
+  #fsHintClose {
+    margin-top: 14px; width: 100%;
+    padding: 11px; border: 0; border-radius: 8px;
+    background: #ffd32a; color: #1a1423;
+    font: bold 15px monospace; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #fsHintClose:active { background: #e6bd1f; }
   #rotate {
     display: none;
     position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
@@ -84,8 +114,21 @@
   <button class="tbtn" id="btnJ" aria-label="jump">&#9650;</button>
 </div>
 <button id="btnFS" aria-label="fullscreen" title="Fullscreen">&#9187;</button>
+<div id="fsHint">
+  <div class="card">
+    <h2>&#128241; Fullscreen on iPhone</h2>
+    <p>iPhone browsers can&rsquo;t go fullscreen inside the page. For a no-address-bar game, add it to your home screen:</p>
+    <ol>
+      <li>Tap the <b>Share</b> button (a box with an &uarr; arrow)</li>
+      <li>Scroll down &rarr; <b>Add to Home Screen</b></li>
+      <li>Open <b>Allama Road Run</b> from your home screen</li>
+    </ol>
+    <p class="note">Tip: works best in <b>Safari</b>. Launched from the icon, it runs fullscreen automatically.</p>
+    <button id="fsHintClose">Got it</button>
+  </div>
+</div>
 <div id="rotate">&#128241; Phone ghoomao &mdash; landscape mein zyada maza hai</div>
-<script src="analytics.js?v=20260613zg"></script>
-<script src="game.js?v=20260613zg"></script>
+<script src="analytics.js?v=20260613zh"></script>
+<script src="game.js?v=20260613zh"></script>
 </body>
 </html>
