@@ -2288,6 +2288,12 @@ function drawCredits() {
     ctx.fillStyle = '#cfd8ff'; ctx.fillRect(sx2, sy * 0.5, 2, 2);
   }
   ctx.globalAlpha = 1;
+  // crescent moon, top-right (full disc minus an offset disc cut from it)
+  const mx = W - 64, my = 60, mr = 24;
+  ctx.globalAlpha = 0.22; ctx.fillStyle = '#fdf6c9'; circle(mx, my, mr + 8); ctx.globalAlpha = 1;  // glow
+  ctx.fillStyle = '#f4ecc2'; circle(mx, my, mr);
+  ctx.fillStyle = '#0c0e26';                                  // carve the crescent with the sky colour
+  circle(mx + 9, my - 5, mr - 1);
   // soft night clouds drifting behind the buildings — credits rise out from here
   for (let i = 0; i < 5; i++) {
     let cx = ((i * 230 + 60) - scroll * 0.10) % (W + 360); if (cx < -200) cx += W + 360;
