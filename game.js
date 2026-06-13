@@ -106,7 +106,7 @@ const GROUND_Y = 470;          // top of footpath where player stands
 const LEN = 13200;             // world length in px
 const RAMP_X0 = 11600, RAMP_X1 = 12500, BRIDGE_Y = 330;
 const FINISH_X = 12830;
-const RIDER_X = 12780;         // your Bykea waits here
+const RIDER_X = 12980;         // your Bykea waits here (well clear of the police)
 const GRAV = 0.55, JUMP_V = -11.6, WALK = 3.6, BOOST = 5.5;
 
 function groundYAt(x) {
@@ -448,12 +448,13 @@ function buildLevel() {
   const peds = [620, 980, 1450, 2050, 2900, 3550, 4250, 5050, 5750, 6300, 7050, 7650, 8200, 9050, 9650, 10500, 12000];
   const pedTints = ['#34495e', '#7f8c8d', '#16607a', '#5b3a29', '#3d6b4a', '#6c3483', '#2c3e50'];
   peds.forEach((pxx, i) => {
-    const r = Math.random();
-    let type = r < 0.20 ? 'burqa' : r < 0.40 ? 'floral' : 'man';
-    const smoker = (i === 2 || i === 9);                         // a couple of smokers
-    if (smoker) type = 'man';
+    const female = Math.random() < 0.4;
+    const smoker = (i === 2 || i === 9);                         // a couple of smokers (men)
     const greet = (i === 5 || i === 12);                         // a couple greet you
+    const type = female && !smoker ? 'floral' : 'man';
     decors.push({ kind: 'pedestrian', x: pxx, base: pxx, dir: i % 2 ? 1 : -1, tint: pedTints[i % pedTints.length], type, smoker, greet });
+    if (type === 'floral')                                       // women always with company
+      decors.push({ kind: 'pedestrian', x: pxx + 22, base: pxx + 22, dir: i % 2 ? 1 : -1, tint: pedTints[(i + 3) % pedTints.length], type: 'man' });
   });
   // trees of varying sizes all along the street
   const treeX = [200, 760, 1280, 2200, 3150, 3850, 4600, 5350, 6150, 7000, 8050, 8950, 10250, 11400];
@@ -527,7 +528,7 @@ const ZONE_SPAWN = [
   ['dumper', 'rickshaw'],
   ['bus', 'car'],
 ];
-const ZONE_RATE = [150, 95, 110, 100, 170, 130];
+const ZONE_RATE = [150, 95, 110, 100, 170, 320];   // zone F (bridge): light traffic
 
 function spawnVehicle() {
   const z = zoneAt(player.x);
@@ -864,20 +865,23 @@ function crowAt(sx, sy, flap) {
 function drawWiresLayer(dark) {
   const top = GROUND_Y - 172;
   ctx.strokeStyle = dark ? '#0c0c10' : '#1b1b1f'; ctx.lineWidth = 1.6;
-  for (let wx = 140; wx < RAMP_X0 - 300; wx += 460) {       // wires don't climb the flyover
+  for (let wx = 140; wx < LEN - 200; wx += 460) {           // wires run the whole road, bridge too
     if (wx + 460 < cam.x || wx > cam.x + W) continue;
+    const onBridge = wx >= RAMP_X0;
+    const ptop = onBridge ? groundYAt(wx) - 168 : top;       // poles ride up with the deck
+    const pbot = onBridge ? groundYAt(wx) : GROUND_Y;
     const sx = px(wx);
     maybeCaw('pole' + wx, sx + 226, ((wx / 460) | 0) % 3 === 1);
     ctx.fillStyle = dark ? '#241c12' : '#4e3b24';            // pole + crossarm
-    ctx.fillRect(sx - 3, top - 10, 6, GROUND_Y - top + 10);
-    ctx.fillRect(sx - 16, top - 6, 32, 4);
-    for (let j = 0; j < 3; j++) {                            // sagging cables
-      const y0 = top + j * 6;
-      ctx.beginPath(); ctx.moveTo(sx, y0);
-      ctx.quadraticCurveTo(sx + 230, y0 + 26 + j * 7, px(wx + 460), y0);
+    ctx.fillRect(sx - 3, ptop - 10, 6, pbot - ptop + 10);
+    ctx.fillRect(sx - 16, ptop - 6, 32, 4);
+    const nextTop = (wx + 460 >= RAMP_X0) ? groundYAt(wx + 460) - 168 : top;
+    for (let j = 0; j < 3; j++) {                            // sagging cables to the next pole
+      ctx.beginPath(); ctx.moveTo(sx, ptop + j * 6);
+      ctx.quadraticCurveTo((sx + px(wx + 460)) / 2, (ptop + nextTop) / 2 + 26 + j * 7, px(wx + 460), nextTop + j * 6);
       ctx.stroke();
     }
-    if (((wx / 460) | 0) % 3 === 1) crowAt(sx + 226, top + 14);
+    if (((wx / 460) | 0) % 3 === 1) crowAt(sx + 226, ptop + 14);
   }
   // crow committee over Madina Meat Shop
   if (4200 > cam.x - 300 && 4500 < cam.x + W + 300) {
@@ -982,20 +986,41 @@ function drawUnderpass(dark) {
   ctx.strokeStyle = 'rgba(230,225,180,0.55)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(nearL, H); ctx.lineTo(vpx - 13, vpy); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(nearR, H); ctx.lineTo(vpx + 13, vpy); ctx.stroke();
-  // tiny cars in their own lanes: left lane approaches, right lane recedes
+  // detailed cars in their own lanes — left lane comes toward us, right lane recedes
   const t = performance.now() / 1000;
   const halfNear = (nearR - nearL) / 2;
-  for (let k = 0; k < 2; k++) {
-    const f = k === 0 ? ((t * 0.22) % 1) : (1 - ((t * 0.19 + 0.45) % 1));
+  const cars = [
+    { lane: -1, off: 0.00, col: '#2980b9' }, { lane: -1, off: 0.55, col: '#27ae60' },
+    { lane: 1, off: 0.28, col: '#c0392b' }, { lane: 1, off: 0.78, col: '#ecf0f1' },
+  ];
+  for (const c of cars) {
+    const approaching = c.lane < 0;                          // toward viewer => shows headlights
+    const f = approaching ? ((t * 0.16 + c.off) % 1) : (1 - ((t * 0.14 + c.off) % 1));
     const half = 13 + (halfNear - 13) * f;
-    const lane = (k === 0 ? -0.5 : 0.5) * half;             // clear of the centre line
-    const cw = 5 + f * 24, ch = 3 + f * 11;
-    const cxp = vpx + (midNear - vpx) * f + lane - cw / 2;
-    const cyp = vpy + (H - vpy) * f - ch;
-    ctx.fillStyle = k ? '#c0392b' : '#2980b9';
-    ctx.fillRect(cxp, cyp, cw, ch);
-    ctx.fillStyle = '#222'; ctx.fillRect(cxp + 1, cyp + ch - 2, cw - 2, 2);
+    const cx2 = vpx + (midNear - vpx) * f + c.lane * 0.5 * half;
+    const cy2 = vpy + (H - vpy) * f;
+    const cw = 6 + f * 30, ch = 4 + f * 15;
+    const bx = cx2 - cw / 2, by = cy2 - ch;
+    ctx.fillStyle = c.col; ctx.fillRect(bx, by, cw, ch);     // body
+    ctx.fillStyle = shade(c.col[0] === '#' && c.col.length === 7 ? c.col : '#888', 0.7);
+    ctx.fillRect(bx, by, cw, Math.max(1, ch * 0.32));        // cabin/roof
+    ctx.fillStyle = 'rgba(170,210,235,0.8)'; ctx.fillRect(bx + cw * 0.18, by + ch * 0.18, cw * 0.64, ch * 0.2); // windscreen
+    if (approaching) {                                        // white headlights facing us
+      ctx.fillStyle = '#fff6c0'; ctx.fillRect(bx + 1, by + ch - 3, 3, 2.5); ctx.fillRect(bx + cw - 4, by + ch - 3, 3, 2.5);
+      if (dark) { ctx.globalAlpha = 0.12; ctx.fillStyle = '#fff3a8'; ctx.fillRect(bx - cw * 0.3, by + ch - 4, cw * 1.6, 5); ctx.globalAlpha = 1; }
+    } else {                                                  // red tail-lights facing away
+      ctx.fillStyle = '#ff3b30'; ctx.fillRect(bx + 1, by + 1, 3, 2.5); ctx.fillRect(bx + cw - 4, by + 1, 3, 2.5);
+    }
   }
+  // RASHID MINHAS ROAD gantry sign, standing on the cross-road (drawn inside the
+  // clip so the bridge deck above overlaps its top edge — reads as "behind the bridge")
+  const gx = cxw, gtop = horizon - 44;                     // in the open below the deck soffit
+  ctx.fillStyle = dark ? '#26303a' : '#5a6470';
+  ctx.fillRect(gx - 64, gtop + 18, 5, horizon - gtop - 12); ctx.fillRect(gx + 59, gtop + 18, 5, horizon - gtop - 12);
+  ctx.fillStyle = dark ? '#0a4f29' : '#0b6e3a'; ctx.fillRect(gx - 68, gtop, 136, 19);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(gx - 68, gtop, 136, 19);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('RASHID MINHAS RD', gx, gtop + 13); ctx.textAlign = 'left';
   ctx.restore();
   // support pillars from the deck soffit down (none in the carriageway itself)
   for (let wx = Math.ceil((RAMP_X0 + 10) / 220) * 220; wx < LEN; wx += 220) {
@@ -1008,15 +1033,6 @@ function drawUnderpass(dark) {
     ctx.fillRect(sx - 9, top, 4, horizon - top + 4);        // shade
     ctx.fillStyle = dark ? '#534f48' : '#8c887f';
     ctx.fillRect(sx - 12, horizon, 24, 7);                  // footing
-  }
-  // road-name board on the bridge fascia, right above the crossing
-  const bsx = px(12150), bsy = groundYAt(12150) + 44;
-  if (bsx > x0 - 200 && bsx < W + 200) {
-    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(bsx - 96, bsy, 192, 22);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(bsx - 96, bsy, 192, 22);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('RASHID MINHAS ROAD', bsx, bsy + 15);
-    ctx.textAlign = 'left';
   }
 }
 
@@ -1162,15 +1178,7 @@ function speechBubble(cx, by, text) {
 function drawPedestrian(cx, gy, shirt, ph, idle, type) {
   type = type || 'man';
   const sw = idle ? 0 : Math.sin(ph) * 2.5;
-  if (type === 'burqa') {
-    // full black abaya, head to toe
-    ctx.fillStyle = '#17171c';
-    ctx.fillRect(cx - 7 + sw * 0.5, gy - 15, 6, 15); ctx.fillRect(cx + 1 - sw * 0.5, gy - 15, 6, 15);
-    ctx.fillStyle = '#202028'; ctx.fillRect(cx - 7, gy - 35, 14, 22);          // robe
-    ctx.fillStyle = '#17171c'; ctx.fillRect(cx - 6, gy - 45, 12, 12);          // head veil
-    ctx.fillStyle = '#0e0e12'; ctx.fillRect(cx - 2, gy - 41, 5, 3);            // face slit shadow
-    return;
-  }
+  if (type === 'burqa') type = 'floral';                       // no lone all-black figures
   // legs (shalwar)
   ctx.fillStyle = '#dcdcd2';
   ctx.fillRect(cx - 5 + sw, gy - 16, 5, 16);
@@ -1571,7 +1579,8 @@ function drawPlayer() {
   ctx.fillRect(c + 2, 6 + hy, 3, 1);                                   // eyebrow
   const blink = (t % 2800) < 120;
   if (!blink) ctx.fillRect(c + 2, 8 + hy, 2, 3); else ctx.fillRect(c + 2, 9 + hy, 3, 1);
-  ctx.fillStyle = skinD; ctx.fillRect(c + 1, 12 + hy, 4, 1);           // mouth
+  ctx.strokeStyle = '#7a4a2b'; ctx.lineWidth = 1;                      // small smile
+  ctx.beginPath(); ctx.arc(c + 2, 11 + hy, 2.4, 0.2, Math.PI - 0.2); ctx.stroke();
 
   ctx.restore();
 }
@@ -1592,14 +1601,15 @@ function drawDecor(d, dark) {
     ctx.fillStyle = '#5d4037'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
     ctx.fillText('UNIVERSITY OF KARACHI', x + 91, GROUND_Y - 152);
     ctx.fillStyle = '#3b6b48'; ctx.fillText('MASKAN GATE', x + 91, GROUND_Y - 130);
-    // gate guard: blue wardi, moustache, danda
-    const ggx = x + 196;
-    ctx.fillStyle = '#1d3f8f'; ctx.fillRect(ggx - 5, GROUND_Y - 16, 5, 16); ctx.fillRect(ggx + 1, GROUND_Y - 16, 5, 16);
-    ctx.fillStyle = '#16306e'; ctx.fillRect(ggx - 6, GROUND_Y - 33, 13, 18);
-    ctx.fillStyle = '#c8a06f'; ctx.fillRect(ggx - 4, GROUND_Y - 42, 9, 10);
-    ctx.fillStyle = '#10254f'; ctx.fillRect(ggx - 5, GROUND_Y - 45, 11, 4);          // cap
-    ctx.fillStyle = '#1e1e1e'; ctx.fillRect(ggx - 3, GROUND_Y - 36, 7, 2);           // moustache
-    ctx.fillStyle = '#6d4c41'; ctx.fillRect(ggx + 7, GROUND_Y - 30, 3, 22);          // danda
+    // two gate guards: blue wardi, moustache, danda
+    for (const ggx of [x + 18, x + 196]) {
+      ctx.fillStyle = '#1d3f8f'; ctx.fillRect(ggx - 5, GROUND_Y - 16, 5, 16); ctx.fillRect(ggx + 1, GROUND_Y - 16, 5, 16);
+      ctx.fillStyle = '#16306e'; ctx.fillRect(ggx - 6, GROUND_Y - 33, 13, 18);
+      ctx.fillStyle = '#c8a06f'; ctx.fillRect(ggx - 4, GROUND_Y - 42, 9, 10);
+      ctx.fillStyle = '#10254f'; ctx.fillRect(ggx - 5, GROUND_Y - 45, 11, 4);        // cap
+      ctx.fillStyle = '#1e1e1e'; ctx.fillRect(ggx - 3, GROUND_Y - 36, 7, 2);         // moustache
+      ctx.fillStyle = '#6d4c41'; ctx.fillRect(ggx + 7, GROUND_Y - 30, 3, 22);        // danda
+    }
   } else if (d.kind === 'lamp') {
     const lgy = groundYAt(d.x);
     ctx.fillStyle = '#444c55'; ctx.fillRect(x, lgy - 130, 6, 130);
@@ -1816,7 +1826,7 @@ function drawDecor(d, dark) {
     const fx = x + 86;
     drawTable(fx + 8); drawTable(fx + 44); drawTable(fx + 80);
     drawPedestrian(fx + 28, GROUND_Y, '#6c3483', 0, true, 'floral');
-    drawPedestrian(fx + 64, GROUND_Y, '#202028', 0, true, 'burqa');
+    drawPedestrian(fx + 64, GROUND_Y, '#16607a', 0, true, 'floral');
     ctx.globalAlpha = 0.88; ctx.fillStyle = '#b71540';            // cloth panels
     ctx.fillRect(fx - 4, GROUND_Y - 34, 112, 28);
     ctx.globalAlpha = 1;
@@ -1897,7 +1907,7 @@ function drawDecor(d, dark) {
     const t = performance.now();
     // customers behind/around
     drawPedestrian(x - 16, GROUND_Y, '#34495e', t / 300, false, 'man');
-    drawPedestrian(x + 82, GROUND_Y, '#6c3483', 0, true, 'burqa');
+    drawPedestrian(x + 82, GROUND_Y, '#6c3483', 0, true, 'man');
     drawPedestrian(x + 96, GROUND_Y, '#7f8c8d', 0, true, 'man');
     // cook standing behind the grill
     drawPedestrian(x + 34, GROUND_Y, '#f4f4f4', 0, true, 'man');
@@ -1906,12 +1916,15 @@ function drawDecor(d, dark) {
     ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x, GROUND_Y - 9, 70, 3);
     for (let i = 0; i < 6; i++) { ctx.fillStyle = (Math.floor(t / 280 + i) % 2) ? '#e25822' : '#ff8c34'; ctx.fillRect(x + 6 + i * 10, GROUND_Y - 18, 7, 4); }
     ctx.fillStyle = '#7a4a2b'; for (let i = 0; i < 5; i++) ctx.fillRect(x + 5 + i * 12, GROUND_Y - 26, 11, 3);  // seekh kebabs
-    // smoke rising slowly
-    for (let i = 0; i < 5; i++) {
-      const sy = (t / 1000 * 15 + i * 20) % 95;
-      ctx.globalAlpha = 0.32 * (1 - sy / 95);
-      ctx.fillStyle = '#d8d8d8';
-      circle(x + 22 + Math.sin(t / 700 + i) * 9, GROUND_Y - 30 - sy, 5 + sy * 0.07);
+    // thick BBQ smoke billowing up from several points along the grill
+    for (let src = 0; src < 4; src++) {
+      const ox = x + 12 + src * 16;
+      for (let i = 0; i < 5; i++) {
+        const sy = (t / 1000 * 17 + i * 17 + src * 9) % 120;
+        ctx.globalAlpha = 0.34 * (1 - sy / 120);
+        ctx.fillStyle = '#d2d2d2';
+        circle(ox + Math.sin(t / 650 + i + src) * 11, GROUND_Y - 28 - sy, 5 + sy * 0.10);
+      }
     }
     ctx.globalAlpha = 1;
   } else if (d.kind === 'masjid') {
@@ -2118,32 +2131,45 @@ function drawSkylineTitle() {
   for (let i = 0; i < W; i += 80) ctx.fillRect(i, H - 32, 40, 5);
 }
 
-function drawWaitingBike(sx, gy, withPassenger, smoking) {
-  // Bykea bike + rider, facing right
-  wheel(sx, gy - 8, 9); wheel(sx + 46, gy - 8, 9);
-  ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(sx, gy - 8); ctx.lineTo(sx + 20, gy - 24); ctx.lineTo(sx + 46, gy - 8); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(sx + 46, gy - 8); ctx.lineTo(sx + 52, gy - 26); ctx.stroke();
-  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(sx + 49, gy - 28, 9, 3);              // bars
-  ctx.fillRect(sx + 12, gy - 27, 24, 4);                                         // long seat
-  // rider in Bykea green
-  ctx.fillStyle = '#0aa54f'; ctx.fillRect(sx + 28, gy - 44, 12, 18);
-  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 30, gy - 53, 9, 9);
-  ctx.fillStyle = '#0e7e3e'; ctx.fillRect(sx + 29, gy - 56, 11, 4);              // helmet
-  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 40, gy - 40, 9, 3);               // arm to bars
-  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(sx + 30, gy - 27, 5, 13);              // leg
-  if (withPassenger) {
-    // our hero riding pillion, backpack and all
-    ctx.fillStyle = '#eef2f7'; ctx.fillRect(sx + 13, gy - 42, 12, 16);
-    ctx.fillStyle = '#8e2433'; ctx.fillRect(sx + 7, gy - 41, 6, 13);             // backpack
-    ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 15, gy - 51, 9, 9);
-    ctx.fillStyle = '#1b1e24'; ctx.fillRect(sx + 14, gy - 53, 11, 4);            // hair
-    ctx.fillStyle = '#2c3a92'; ctx.fillRect(sx + 16, gy - 27, 5, 12);            // jeans
+function drawWaitingBike(sx, gy, withPassenger, smoking, bob) {
+  const yy = gy + (bob || 0);
+  // CD70 sprite, flipped to face RIGHT (the ride direction)
+  const spr = sprites.bike;
+  if (spr) {
+    const c = spr.content || { x: 0, y: 0, w: spr.width, h: spr.height };
+    const s = 54 / c.h, dw = spr.width * s, dh = spr.height * s;
+    ctx.save();
+    ctx.translate(sx + 24, yy); ctx.scale(-1, 1);
+    ctx.drawImage(spr, -(c.x + c.w / 2) * s, -(c.y + c.h) * s, dw, dh);
+    ctx.restore();
+  } else {                                                       // simple fallback bike
+    wheel(sx, yy - 8, 9); wheel(sx + 46, yy - 8, 9);
+    ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(sx, yy - 8); ctx.lineTo(sx + 20, yy - 24); ctx.lineTo(sx + 46, yy - 8); ctx.stroke();
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(sx + 12, yy - 27, 24, 4);
   }
-  if (smoking) {                                                                   // phattay exhaust
+  // driver — green Bykea kit, black helmet
+  const dy0 = yy - 32;
+  ctx.fillStyle = '#0aa54f'; ctx.fillRect(sx + 26, dy0, 12, 17);                 // torso
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 36, dy0 + 3, 7, 3);              // arm to bars
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 28, dy0 - 9, 9, 9);              // head
+  ctx.fillStyle = '#15151a'; ctx.fillRect(sx + 27, dy0 - 12, 11, 7);           // black helmet
+  ctx.fillStyle = '#0a3a1e'; ctx.fillRect(sx + 35, dy0 - 8, 4, 3);             // visor
+  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(sx + 28, dy0 + 17, 5, 11);           // leg
+  if (withPassenger) {
+    ctx.fillStyle = '#eef2f7'; ctx.fillRect(sx + 10, dy0 + 1, 12, 16);          // hero, white shirt
+    ctx.fillStyle = '#8e2433'; ctx.fillRect(sx + 4, dy0 + 2, 6, 13);            // backpack
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 12, dy0 - 8, 9, 9);           // head
+    ctx.fillStyle = '#1b1e24'; ctx.fillRect(sx + 11, dy0 - 10, 11, 4);         // hair
+    ctx.fillStyle = '#1e272e'; ctx.fillRect(sx + 18, dy0 - 4, 2, 2);           // eye
+    ctx.strokeStyle = '#7a4a2b'; ctx.lineWidth = 1;                             // small smile
+    ctx.beginPath(); ctx.arc(sx + 16, dy0 - 1, 2.2, 0.25, Math.PI - 0.25); ctx.stroke();
+    ctx.fillStyle = '#2c3a92'; ctx.fillRect(sx + 12, dy0 + 17, 5, 10);         // jeans
+  }
+  if (smoking) {                                                                 // phattay exhaust
     ctx.globalAlpha = 0.5; ctx.fillStyle = '#aab';
-    circle(sx - 8 - Math.random() * 8, gy - 12, 3 + Math.random() * 3);
-    circle(sx - 16 - Math.random() * 8, gy - 14, 2 + Math.random() * 3);
+    circle(sx - 8 - Math.random() * 8, yy - 12, 3 + Math.random() * 3);
+    circle(sx - 16 - Math.random() * 8, yy - 14, 2 + Math.random() * 3);
     ctx.globalAlpha = 1;
   }
 }
@@ -2159,30 +2185,78 @@ function drawRideScene() {
 }
 
 function drawCredits() {
+  const t = performance.now();
+  const SY = H - 112;                                          // top of the night-ride strip
+  const RD = H - 96;                                           // road top — wide carriageway
+  const scroll = creditsT * 3.4;
   // ethereal night-sky backdrop
   const g2 = ctx.createLinearGradient(0, 0, 0, H);
   g2.addColorStop(0, '#10122b'); g2.addColorStop(1, '#2b1f3d');
   ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
-  const t = performance.now();
   for (let i = 0; i < 26; i++) {                              // drifting stars
     const sy = (i * 97) % H, sx2 = ((i * 211) + t * 0.008 * (10 + i % 7)) % W;
     ctx.globalAlpha = 0.25 + 0.5 * Math.abs(Math.sin(t / 1200 + i));
-    ctx.fillStyle = '#cfd8ff'; ctx.fillRect(sx2, sy * 0.7, 2, 2);
+    ctx.fillStyle = '#cfd8ff'; ctx.fillRect(sx2, sy * 0.55, 2, 2);
   }
   ctx.globalAlpha = 1;
-  // rolling credits
+  // --- night scene (behind the credits text) ---
+  // distant apartment blocks with lit/dark windows (kept low so text stays clear)
+  for (let bi = 0; bi < 11; bi++) {
+    const bw = 64 + (bi * 53) % 56, bh = 54 + (bi * 97) % 70;
+    let bx = ((bi * 210) - (scroll * 0.35)) % (W + 250);
+    if (bx < -180) bx += W + 250;
+    if (bx > W + 20) continue;
+    ctx.fillStyle = '#161a32'; ctx.fillRect(bx, SY - bh, bw, bh + (H - SY));
+    for (let wy = SY - bh + 9; wy < RD - 12; wy += 15)
+      for (let wx2 = bx + 6; wx2 < bx + bw - 8; wx2 += 13) {
+        ctx.fillStyle = ((wx2 * 13 + wy * 7 + bi * 31) % 5) < 2 ? '#ffd98a' : '#0d1024';
+        ctx.fillRect(wx2, wy, 7, 8);
+      }
+  }
+  // wide road, two lanes
+  ctx.fillStyle = '#1b1e30'; ctx.fillRect(0, RD, W, H - RD);
+  ctx.fillStyle = '#2a2e44'; ctx.fillRect(0, RD, W, 4);
+  ctx.fillStyle = '#3a3f5c'; ctx.fillRect(0, (RD + H) / 2 - 1, W, 2);
+  ctx.fillStyle = '#d9d090';
+  for (let dx2 = -(scroll % 110); dx2 < W; dx2 += 110) { ctx.fillRect(dx2, RD + 26, 44, 4); ctx.fillRect(dx2 + 55, H - 22, 44, 4); }
+  // realistic street lights with downward cones
+  for (let lx = -(scroll % 300); lx < W + 80; lx += 300) {
+    ctx.fillStyle = '#3a4061'; ctx.fillRect(lx, RD - 86, 5, 86); ctx.fillRect(lx, RD - 86, 30, 4);
+    ctx.fillStyle = '#fff0c4'; ctx.fillRect(lx + 25, RD - 84, 9, 6);
+    const grd = ctx.createLinearGradient(lx + 29, RD - 80, lx + 29, H);
+    grd.addColorStop(0, 'rgba(255,220,150,0.22)'); grd.addColorStop(1, 'rgba(255,220,150,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.moveTo(lx + 25, RD - 78); ctx.lineTo(lx + 34, RD - 78); ctx.lineTo(lx + 60, H); ctx.lineTo(lx - 2, H); ctx.closePath(); ctx.fill();
+  }
+  // SHAHRAH-E-FAISAL gantry drifts past
+  const gb = W + 260 - ((scroll * 0.8) % (W * 4 + 520));
+  if (gb > -260 && gb < W + 40) {
+    ctx.fillStyle = '#3a4061'; ctx.fillRect(gb + 30, RD - 70, 5, 70); ctx.fillRect(gb + 185, RD - 70, 5, 70);
+    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(gb, RD - 74, 220, 24);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gb, RD - 74, 220, 24);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('SHAHRAH-E-FAISAL', gb + 110, RD - 57);
+  }
+  // a rare passing car
+  const carP = (creditsT * 5.0) % (W * 5 + 800);
+  if (carP < W + 200) {
+    const cx2 = W + 100 - carP;
+    ctx.fillStyle = '#171c30'; ctx.fillRect(cx2, RD + 16, 52, 13); ctx.fillRect(cx2 + 12, RD + 7, 28, 10);
+    ctx.fillStyle = '#ff3b30'; ctx.fillRect(cx2 + 49, RD + 18, 3, 3);
+  }
+  // --- rolling credits text (on top of the scene) ---
   const secs = ((tEnd - tStart) / 1000).toFixed(1);
   const lines = [
     ['USMANI ROAD RUN', 'title'],
     ['Maskan Chowrangi → Gulshan Bridge', 'sub'],
     ['', ''],
-    ['— RUN STATS —', 'head'],
+    ['- RUN STATS -', 'head'],
     ['Time taken: ' + secs + 's', ''],
     ['Rupees picked up: ' + rupeesCollected, ''],
     ['Chai paani to police: ' + policeTollDone + ' Rs', ''],
     ['Rupees left in pocket: ' + rupees, ''],
     ['', ''],
-    ['— MADE BY ABU MUSA —', 'head'],
+    ['- MADE BY ABU MUSA -', 'head'],
     ['on Claude Code', ''],
     ['when he was testing what it could do', ''],
     ['', ''],
@@ -2191,13 +2265,12 @@ function drawCredits() {
     ['', ''],
     ['Shukriya for playing', 'head'],
   ];
-  const SY = H - 112;                                          // top of the night-ride strip
   const total = lines.length * 34;
-  const yStart = H - ((creditsT * 0.55) % (total + H + 60));   // credits loop forever
+  const yStart = H - ((creditsT * 0.55) % (total + H + 60));
   ctx.textAlign = 'center';
   for (let i = 0; i < lines.length; i++) {
     const ly = yStart + i * 34;
-    if (ly < -20 || ly > SY - 6) continue;
+    if (ly < -20 || ly > SY - 8) continue;
     const st = lines[i][1];
     if (st === 'title') { ctx.font = 'bold 34px monospace'; ctx.fillStyle = '#ffd32a'; }
     else if (st === 'head') { ctx.font = 'bold 20px monospace'; ctx.fillStyle = '#7fe3a8'; }
@@ -2206,40 +2279,12 @@ function drawCredits() {
     else { ctx.font = '17px monospace'; ctx.fillStyle = '#e8ecf4'; }
     ctx.fillText(lines[i][0], W / 2, ly);
   }
-  // night ride down Shahrah-e-Faisal: long, straight, quiet — just street lights
-  ctx.fillStyle = '#0b0d20'; ctx.fillRect(0, SY, W, 112);
-  ctx.fillStyle = '#14172e'; ctx.fillRect(0, SY, W, 4);
-  ctx.fillStyle = '#23263d'; ctx.fillRect(0, H - 46, W, 46);     // road
-  const scroll = creditsT * 3.2;
-  ctx.fillStyle = '#d9d090';
-  for (let dx2 = -(scroll % 90); dx2 < W; dx2 += 90) ctx.fillRect(dx2, H - 24, 34, 4);
-  for (let lx = -(scroll % 240); lx < W + 60; lx += 240) {       // gliding street lights
-    ctx.fillStyle = '#39405c'; ctx.fillRect(lx, H - 110, 5, 64);
-    ctx.fillRect(lx, H - 110, 22, 4);
-    ctx.fillStyle = '#ffcf87'; ctx.fillRect(lx + 18, H - 108, 8, 6);
-    ctx.globalAlpha = 0.13; circle(lx + 22, H - 100, 26); ctx.globalAlpha = 1;
-  }
-  const gb = W + 240 - ((scroll * 0.9) % (W * 3 + 480));          // overhead board drifts by
-  if (gb > -260 && gb < W + 40) {
-    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(gb, SY + 12, 220, 26);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gb, SY + 12, 220, 26);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace';
-    ctx.fillText('SHAHRAH-E-FAISAL', gb + 110, SY + 30);
-  }
-  const carP = (creditsT * 4.6) % (W * 4 + 800);                  // a rare car, nothing more
-  if (carP < W + 200) {
-    const cx2 = W + 100 - carP;
-    ctx.fillStyle = '#161a2c'; ctx.fillRect(cx2, H - 38, 56, 14); ctx.fillRect(cx2 + 12, H - 48, 30, 12);
-    ctx.fillStyle = '#fff6c0'; circle(cx2 + 2, H - 32, 2.5);
-    ctx.globalAlpha = 0.18; ctx.fillStyle = '#fff3a8';
-    ctx.beginPath(); ctx.moveTo(cx2, H - 34); ctx.lineTo(cx2 - 34, H - 40); ctx.lineTo(cx2 - 34, H - 26); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-  drawWaitingBike(W * 0.30, H - 12, true, Math.floor(creditsT / 6) % 3 === 0);  // steady cruise
-  // restart hint
+  // our bike — fixed position, gentle bob
+  const bob = Math.sin(creditsT / 9) * 2.5;
+  drawWaitingBike(W * 0.32, H - 14, true, Math.floor(creditsT / 6) % 3 === 0, bob);
   if (Math.floor(t / 600) % 2 === 0) {
-    ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#ffd32a';
-    ctx.fillText('press R  /  tap to restart', W / 2, SY - 10);
+    ctx.textAlign = 'center'; ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#ffd32a';
+    ctx.fillText('press R  /  tap to restart', W / 2, SY - 16);
   }
   ctx.textAlign = 'left';
 }
