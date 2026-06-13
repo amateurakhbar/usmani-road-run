@@ -2954,13 +2954,12 @@ function drawTitle() {
   }
   ctx.font = 'bold 14px monospace'; ctx.fillStyle = titleNF > 0.5 ? '#aaa8b8' : '#2c3e50';
   ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 250);
-  // easy mode toggle
-  ctx.font = 'bold 13px monospace';
+  // easy mode + music toggles — top right
+  ctx.textAlign = 'right'; ctx.font = 'bold 13px monospace';
   ctx.fillStyle = easyMode ? '#2ecc71' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
-  ctx.fillText((easyMode ? '[✓] EASY MODE  ON' : '[ ] EASY MODE  OFF') + '  — can\'t die  (press E)', W / 2, 274);
-  // music toggle
+  ctx.fillText(easyMode ? '[✓] EASY MODE  ON  (E)' : '[ ] EASY MODE  OFF  (E)', W - 12, 22);
   ctx.fillStyle = musicOn ? '#3498db' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
-  ctx.fillText((musicOn ? '[♪] MUSIC  ON' : '[✕] MUSIC  OFF') + '  (press M)', W / 2, 292);
+  ctx.fillText(musicOn ? '[♪] MUSIC  ON  (M)' : '[✕] MUSIC  OFF  (M)', W - 12, 40);
   ctx.textAlign = 'left';
 }
 
