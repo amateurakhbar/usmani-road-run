@@ -47,6 +47,10 @@
   #btnL { left: max(3vw, env(safe-area-inset-left)); }
   #btnR { left: calc(max(3vw, env(safe-area-inset-left)) + 88px); }
   #btnJ { right: max(3vw, env(safe-area-inset-right)); width: 86px; height: 86px; }
+  /* left-handed layout: jump moves to the LEFT, walk pair to the RIGHT */
+  body.lefty #btnJ { right: auto; left: max(3vw, env(safe-area-inset-left)); }
+  body.lefty #btnR { left: auto; right: max(3vw, env(safe-area-inset-right)); }
+  body.lefty #btnL { left: auto; right: calc(max(3vw, env(safe-area-inset-right)) + 88px); }
   #btnFS {
     position: fixed;
     top: max(8px, env(safe-area-inset-top));
@@ -81,6 +85,7 @@
 </div>
 <button id="btnFS" aria-label="fullscreen" title="Fullscreen">&#9187;</button>
 <div id="rotate">&#128241; Phone ghoomao &mdash; landscape mein zyada maza hai</div>
-<script src="game.js?v=20260613zf"></script>
+<script src="analytics.js?v=20260613zg"></script>
+<script src="game.js?v=20260613zg"></script>
 </body>
 </html>

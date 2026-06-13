@@ -169,10 +169,14 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP' && state === 'play') paused = !paused;
   if (e.code === 'KeyM') musicOn = !musicOn;
   if (e.code === 'KeyE' && (state === 'title' || state === 'gameover')) easyMode = !easyMode;
+  if (e.code === 'KeyC' && (state === 'title' || state === 'gameover')) toggleLefty();
   if (!e.repeat && (e.code === 'ArrowLeft' || e.code === 'KeyA')) recordCheat('L');
   if (!e.repeat && (e.code === 'ArrowRight' || e.code === 'KeyD')) recordCheat('R');
 });
 addEventListener('keyup', e => keys[e.code] = false);
+// count a play that the user walked away from mid-run (tab close / app switch)
+addEventListener('pagehide', () => { if (state === 'play') trackGameEnd('abandoned'); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && state === 'play') trackGameEnd('abandoned'); });
 
 // block iOS double-tap / pinch zoom — it desyncs the fixed canvas from the screen
 addEventListener('dblclick', e => e.preventDefault(), { passive: false });
@@ -552,6 +556,26 @@ let toastPending = null; // { text, t } — shown after current toast expires
 let iceCount = 0, lastIceX = -99999;
 let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
 let easyMode = false;                 // toggled on title screen — sets godMode on game start
+
+// left-handed control layout: jump on the LEFT, walk pair on the RIGHT (mobile touch buttons)
+let lefty = false;
+try { lefty = localStorage.getItem('urr_lefty') === '1'; } catch (e) {}
+function applyLefty() {
+  document.body.classList.toggle('lefty', lefty);
+  try { localStorage.setItem('urr_lefty', lefty ? '1' : '0'); } catch (e) {}
+}
+function toggleLefty() { lefty = !lefty; applyLefty(); if (typeof track === 'function') track('toggle_controls', { lefty: lefty }); }
+applyLefty();
+
+// ---- analytics: one game_end per play (completed / died / abandoned) ----
+let gameEndSent = false;
+function trackGameEnd(outcome) {
+  if (gameEndSent || !tStart) return;
+  gameEndSent = true;
+  if (typeof track !== 'function') return;
+  const dur = Math.round(((tEnd || performance.now()) - tStart) / 1000);
+  track('game_end', { outcome: outcome, duration_sec: dur, rupees: rupees || 0, easy_mode: !!easyMode });
+}
 let policeTollLeft = 20, policeTollCd = 0, policeTollDone = 0;   // chai-paani vasooli at the bridge
 let playerSay = { t: 0, text: '' }, sayTimer = 0, sayScript = [], sayDelay = 0;
 let rideT = 0, bikeX = 0, creditsT = 0, rupeesCollected = 0;
@@ -589,6 +613,8 @@ function startGame() {
   coinsAll.forEach(c => c.taken = false);
   powerups.forEach(p => p.taken = false);
   state = 'play'; paused = false;
+  gameEndSent = false;
+  if (typeof track === 'function') track('game_start', { easy_mode: !!easyMode, lefty: !!lefty });
 }
 
 // ---------- vehicles ----------
@@ -642,7 +668,7 @@ function damage(knockDir) {
   if (!godMode) hearts--;
   iframes = 85; sfx.hurt();
   player.vy = -7; player.vx = 6 * knockDir;
-  if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); }
+  if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); trackGameEnd('died'); }
 }
 function respawn() {
   sfx.fall();
@@ -659,7 +685,7 @@ function respawn() {
   let cp = CHECKPOINTS[0];
   for (const c of CHECKPOINTS) if (c < player.x - 20) cp = c;
   hearts--;
-  if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); return; }
+  if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); trackGameEnd('died'); return; }
   player.x = cp; player.y = groundYAt(cp) - player.h; player.vx = 0; player.vy = 0;
   iframes = 100;
 }
@@ -826,6 +852,7 @@ function step() {
   // reach your Bykea at the top of the bridge -> ride away
   if (player.x + player.w >= RIDER_X - 6) {
     state = 'ride'; tEnd = performance.now();
+    trackGameEnd('completed');
     rideT = 0; bikeX = RIDER_X;
     for (const k in keys) keys[k] = false;
     playerSay.t = 0;
@@ -3066,6 +3093,8 @@ function drawTitle() {
   ctx.fillText(easyMode ? '[✓] EASY MODE  ON  (E)' : '[ ] EASY MODE  OFF  (E)', W - 12, 22);
   ctx.fillStyle = musicOn ? '#3498db' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
   ctx.fillText(musicOn ? '[♪] MUSIC  ON  (M)' : '[✕] MUSIC  OFF  (M)', W - 12, 40);
+  ctx.fillStyle = lefty ? '#e67e22' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
+  ctx.fillText(lefty ? '[↔] CONTROLS  LEFTY  (C)' : '[↔] CONTROLS  RIGHTY  (C)', W - 12, 58);
   ctx.textAlign = 'left';
 }
 
@@ -3277,6 +3306,9 @@ function drawGameOver() {
   // music toggle
   ctx.fillStyle = musicOn ? '#3498db' : '#7f8c8d';
   ctx.fillText((musicOn ? '[♪] MUSIC  ON' : '[✕] MUSIC  OFF') + '  (press M)', W / 2, 403);
+  // controls toggle (lefty / righty)
+  ctx.fillStyle = lefty ? '#e67e22' : '#7f8c8d';
+  ctx.fillText((lefty ? '[↔] CONTROLS  LEFTY' : '[↔] CONTROLS  RIGHTY') + '  (press C)', W / 2, 423);
   ctx.textAlign = 'left';
 }
 function drawWin() {
@@ -3320,14 +3352,21 @@ bindTouchBtn('btnJ', 'Space');
 cv.addEventListener('pointerdown', e => {
   initAudio();
   const rect = cv.getBoundingClientRect();
+  const cx2 = (e.clientX - rect.left) / rect.width * cv.width;
   const cy2 = (e.clientY - rect.top) / rect.height * cv.height;
   if (state === 'title') {
-    if (cy2 > 262 && cy2 < 285) { easyMode = !easyMode; return; }          // easy mode row
-    if (cy2 > 280 && cy2 < 303) { musicOn = !musicOn; updateMusicTracks(); return; } // music row
+    // toggle stack lives top-right (easy y22 / music y40 / controls y58)
+    if (cx2 > W - 250 && cy2 < 70) {
+      if (cy2 < 31) easyMode = !easyMode;
+      else if (cy2 < 49) { musicOn = !musicOn; updateMusicTracks(); }
+      else toggleLefty();
+      return;
+    }
     startGame();
   } else if (state === 'gameover') {
-    if (cy2 > 371 && cy2 < 394) { easyMode = !easyMode; return; }           // easy mode row
-    if (cy2 > 391 && cy2 < 414) { musicOn = !musicOn; updateMusicTracks(); return; } // music row
+    if (cy2 > 373 && cy2 < 392) { easyMode = !easyMode; return; }           // easy mode row (y383)
+    if (cy2 > 393 && cy2 < 412) { musicOn = !musicOn; updateMusicTracks(); return; } // music row (y403)
+    if (cy2 > 413 && cy2 < 432) { toggleLefty(); return; }                  // controls row (y423)
     startGame();
   } else if (state === 'win') startGame();
   else if (state === 'credits') { state = 'title'; titleStart = performance.now(); }
