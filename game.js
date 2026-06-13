@@ -261,10 +261,11 @@ function buildLevel() {
   addBldg(960,  200, 260, 'SUNNY ARCADE', '#f5d76e', '#e0b13c', { awning: '#2ecc71' });
   addBldg(1160, 150, 200, 'MASTER ELECTRONICS', '#74b9ff', '#3a7bd5', { awning: '#e74c3c' });
   addBldg(1330, 165, 215, 'JANNAT RESTAURANT', '#f5b942', '#d99a1f', { sign: '#7a1010', signText: '#fff5d0', awning: '#b71540' });
-  addBldg(1480, 170, 220, 'MEEZAN BANK', '#ecf0f1', '#bdc3c7', { signText: '#6c3483' });
+  // open dining space next to Jannat (no building here) — outdoor plastic tables
+  decors.push({ kind: 'tables', x: 1596 });
   addBldg(1680, 200, 240, 'MASKAN VENUE', '#fde3a7', '#f5b041');
   decors.push({ kind: 'kepole', x: 1640, spark: false });
-  addBldg(1910, 140, 170, 'PHOTOSTAT', '#a29bfe', '#6c5ce7', { awning: '#3498db' });
+  addBldg(1910, 140, 170, 'Y MEN SALON', '#e74c3c', '#b03226', { sign: '#ffffff', signText: '#c0392b', awning: '#2c3e50' });
   addBldg(2070, 160, 200, 'MADINA STORE', '#55efc4', '#00b894', { awning: '#e67e22' });
   addBldg(2250, 150, 190, 'JAFFERY OPTICAL', '#dff9fb', '#c7ecee', { signText: '#130f40', awning: '#2c3e50' });
   decors.push({ kind: 'kepole', x: 2430, spark: true });
@@ -274,6 +275,7 @@ function buildLevel() {
   // Regency Apartments + Coffee Wagera (tall landmark)
   addBldg(2860, 260, 330, 'REGENCY APARTMENTS', '#fad390', '#f8c291', { floors: 6 });
   addBldg(2880, 120, 110, 'COFFEE WAGERA', '#4a2c11', '#2d1a08', { sign: '#f7d794', signText: '#3d2208', awning: '#c0894f' });
+  addBldg(3130, 190, 230, 'MEEZAN BANK', '#ecf0f1', '#bdc3c7', { signText: '#6c3483' });
   solids.push({ x: 3180, y: GROUND_Y - 42, w: 120, h: 42, kind: 'mehran' });    // parked Mehran = platform
   coinArc(3140, GROUND_Y - 60, 6);
   addBldg(3340, 180, 220, 'HBL', '#dcdde1', '#aab0b6', { signText: '#0b6e4f' });
@@ -288,7 +290,9 @@ function buildLevel() {
   // --- Zone C: Food Street (Block 4) ---
   banners.push({ x: 4100, text: 'GULSHAN FOOD STREET' });
   addBldg(4080, 200, 230, 'ALFAREED PAKWAN', '#e17055', '#c44d33', { awning: '#27ae60' });
-  decors.push({ kind: 'cart', x: 4330, label: 'GOL GAPPA' });
+  decors.push({ kind: 'cart', x: 4180, label: 'GOL GAPPA' });
+  addBldg(4290, 150, 190, 'MADINA MEAT SHOP', '#8c2f2f', '#6d2222', { sign: '#f5e9e9', signText: '#7a1010' });
+  decors.push({ kind: 'chickenwala', x: 4345 });
   addBldg(4450, 190, 210, 'MANPASAND FOOD VALLEY', '#fab1a0', '#e58e7e', { awning: '#d63031' });
   decors.push({ kind: 'cart', x: 4690, label: 'JUICE' });
   addBldg(4790, 170, 200, 'BISMILLAH HOTEL', '#ffeaa7', '#fdcb6e', { awning: '#2d3436' });
@@ -367,8 +371,15 @@ function buildLevel() {
   // --- Karachi street life ---
   addBldg(800, 158, 210, 'DARBAR', '#ffd54a', '#e6bb2e', { sign: '#7a1f1f', signText: '#7a1f1f', awning: '#b71540' });
   decors.push({ kind: 'masjid', x: 6510 });                      // Akbar Masjid (اکبر مسجد) + speaker
-  decors.push({ kind: 'fixit', x: 1700 });                       // Fixit free-food stall + queue
-  decors.push({ kind: 'desibbq', x: 1505 });                     // Jannat's desi BBQ grill out front
+  decors.push({ kind: 'fixit', x: 6720 });                       // Fixit free-food stall, just before Disco Bakery
+  decors.push({ kind: 'desibbq', x: 1500 });                     // Jannat's desi BBQ grill out front
+  decors.push({ kind: 'chaiwala', x: 3030 });                    // chai wala by the chai power-up
+  decors.push({ kind: 'billboard', x: 3560, lines: ['9/10 PEOPLE SAY', 'KARACHI LOVES SHAN', '(the masala, not the actor)'], bg: '#fff8ec', fg: '#c0392b' });
+  decors.push({ kind: 'billboard', x: 9240, lines: ['BYKEA KARO'], bg: '#0aa54f', fg: '#ffffff' });
+  [[1230, '#7d7d85'], [4520, '#b58a5a'], [7320, '#3a3a3a'], [10180, '#c98f4e']].forEach((c2, i) =>
+    decors.push({ kind: 'cat', x: c2[0], base: c2[0], dir: i % 2 ? 1 : -1, tint: c2[1] }));
+  const cowX = 3300 + Math.floor(Math.random() * 5200);          // exactly one cow per run
+  decors.push({ kind: 'cow', x: cowX, base: cowX, dir: 1 });
   decors.push({ kind: 'rollstall', x: 4980 });                   // Hot N Spicy rolls
   decors.push({ kind: 'goldperformer', x: 3010 });              // gold-painted living statue
   decors.push({ kind: 'foosball', x: 2360 });                   // roadside foosball
@@ -383,8 +394,11 @@ function buildLevel() {
   const pedTints = ['#34495e', '#7f8c8d', '#16607a', '#5b3a29', '#3d6b4a', '#6c3483', '#2c3e50'];
   peds.forEach((pxx, i) => {
     const r = Math.random();
-    const type = r < 0.20 ? 'burqa' : r < 0.40 ? 'floral' : 'man';
-    decors.push({ kind: 'pedestrian', x: pxx, base: pxx, dir: i % 2 ? 1 : -1, tint: pedTints[i % pedTints.length], type });
+    let type = r < 0.20 ? 'burqa' : r < 0.40 ? 'floral' : 'man';
+    const smoker = (i === 2 || i === 9);                         // a couple of smokers
+    if (smoker) type = 'man';
+    const greet = (i === 5 || i === 12);                         // a couple greet you
+    decors.push({ kind: 'pedestrian', x: pxx, base: pxx, dir: i % 2 ? 1 : -1, tint: pedTints[i % pedTints.length], type, smoker, greet });
   });
   // trees of varying sizes all along the street
   const treeX = [200, 760, 1280, 2200, 3150, 3850, 4600, 5350, 6150, 7000, 8050, 8950, 10250, 11400];
@@ -402,7 +416,7 @@ let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT
 let iceCount = 0, lastIceX = -99999;
 let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
 let policeTollLeft = 20, policeTollCd = 0, policeTollDone = 0;   // chai-paani vasooli at the bridge
-let playerSay = { t: 0, text: '' }, sayTimer = 0;
+let playerSay = { t: 0, text: '' }, sayTimer = 0, sayScript = [], sayDelay = 0;
 
 function recordCheat(dir) {
   cheatSeq.push(dir);
@@ -426,7 +440,10 @@ function startGame() {
   iceCount = 0; lastIceX = -99999;
   godMode = false; cheatSeq = [];     // cheat lasts one run only
   policeTollLeft = 20; policeTollCd = 0; policeTollDone = 0;
-  playerSay = { t: 0, text: '' }; sayTimer = 480 + Math.floor(Math.random() * 600);
+  playerSay = { t: 0, text: '' };
+  sayScript = [['ghar chaltay hain', 95], ['bykea karun ya walk?', 95], ['chaltay hain ajj', 62], ['kitna he bura hoga', 62]];
+  sayDelay = 110;
+  sayTimer = 600 + Math.floor(Math.random() * 900);
   tStart = performance.now(); tEnd = 0;
   coinsAll.forEach(c => c.taken = false);
   powerups.forEach(p => p.taken = false);
@@ -467,6 +484,7 @@ function spawnVehicle() {
   if (x > LEN - 100) return;
   const CARCOLORS = ['#ecf0f1', '#2d3436', '#c0392b', '#2980b9', '#16a085', '#d4ac0d', '#7f8c8d'];
   vehicles.push({ kind, x, w: t.w, h: t.h, vx: -(t.sp + Math.random() * 0.6), honked: false,
+    lightOn: Math.random() < 0.5,
     color: CARCOLORS[Math.floor(Math.random() * CARCOLORS.length)] });
 }
 
@@ -556,6 +574,7 @@ function step() {
     v.y = groundYAt(v.x + v.w / 2) - v.h;
     if (v.x + v.w < cam.x - 200) { vehicles.splice(i, 1); continue; }
     if (!v.honked && Math.abs(v.x - player.x) < 320 && Math.random() < 0.01) { v.honked = true; if (Math.abs(v.x-player.x)<340) sfx.horn(); }
+    if (v.kind === 'bus' && Math.random() < 0.0035 && Math.abs(v.x - player.x) < 900) sfx.horn();   // buses honk on principle
     if (rectHit(player, v)) {
       const prevB = player.y + player.h - player.vy;
       if (player.vy > 0 && prevB <= v.y + 12) {               // bounce off the roof!
@@ -598,15 +617,20 @@ function step() {
     }
   }
 
-  // player occasionally mutters about just ordering Bykea
-  if (--sayTimer <= 0) { playerSay = { t: 150, text: 'Bykea he mangwaleta...' }; sayTimer = 900 + Math.floor(Math.random() * 900); }
+  // opening monologue, then occasional Bykea mutters (only past Disco Bakery)
+  if (sayScript.length > 0) {
+    if (--sayDelay <= 0) { const nxt = sayScript.shift(); playerSay = { t: nxt[1], text: nxt[0] }; sayDelay = nxt[1] + 14; }
+  } else if (player.x > 7200 && --sayTimer <= 0) {
+    playerSay = { t: 150, text: 'Bykea he mangwaleta...' };
+    sayTimer = 900 + Math.floor(Math.random() * 900);
+  }
   if (playerSay.t > 0) playerSay.t--;
 
-  // pedestrians shuffle along the footpath
-  for (const d of decors) if (d.kind === 'pedestrian') {
-    d.x += d.dir * 0.35;
-    if (d.x > d.base + 130) d.dir = -1;
-    else if (d.x < d.base - 130) d.dir = 1;
+  // pedestrians, cats and the cow move along the footpath
+  for (const d of decors) {
+    if (d.kind === 'pedestrian') { d.x += d.dir * 0.45; if (d.x > d.base + 140) d.dir = -1; else if (d.x < d.base - 140) d.dir = 1; }
+    else if (d.kind === 'cat') { d.x += d.dir * 0.7; if (d.x > d.base + 170) d.dir = -1; else if (d.x < d.base - 170) d.dir = 1; }
+    else if (d.kind === 'cow') { d.x += d.dir * 0.18; if (d.x > d.base + 320) d.dir = -1; else if (d.x < d.base - 320) d.dir = 1; }
   }
 
   // ice cream wala jingle: louder as the cart gets closer, fades as it passes
@@ -657,8 +681,10 @@ function draw() {
   if (state === 'title') { drawTitle(); return; }
 
   drawSkyline(dark);
+  drawClouds(dark);
   drawRoadAndGround(dark);
   for (const b of buildings) if (b.x + b.w > cam.x - 20 && b.x < cam.x + W + 20) drawBuilding(b, dark);
+  drawWiresLayer(dark);
   for (const d of decors) if (d.x > cam.x - 400 && d.x < cam.x + W + 400) drawDecor(d, dark);
   for (const ban of banners) if (ban.x > cam.x - 500 && ban.x < cam.x + W + 100) drawBanner(ban);
   for (const p of platforms) if (p.x + p.w > cam.x && p.x < cam.x + W) drawPlatform(p);
@@ -691,6 +717,60 @@ function drawSkyline(dark) {
     const hh = 90 + ((i * 73) % 70);
     ctx.fillRect(bx, GROUND_Y - 150 - hh + 60, 120, hh + 90);
     ctx.fillRect(bx + 140, GROUND_Y - 110 - ((i * 37) % 50) + 60, 80, 200);
+  }
+}
+
+const CLOUDS = [{ wx: 600, y: 78, s: 1 }, { wx: 2950, y: 58, s: 1.35 }, { wx: 5600, y: 96, s: 0.85 }, { wx: 8300, y: 66, s: 1.2 }, { wx: 11400, y: 88, s: 1 }];
+function drawClouds(dark) {
+  const t = performance.now() / 1000;
+  ctx.fillStyle = dark ? 'rgba(200,205,230,0.10)' : 'rgba(255,255,255,0.85)';
+  for (const c of CLOUDS) {
+    let sx = (c.wx - cam.x * 0.4 + t * 7) % (LEN * 0.6);
+    if (sx < -260) sx += LEN * 0.6;
+    if (sx > W + 260) continue;
+    circle(sx, c.y, 18 * c.s); circle(sx + 20 * c.s, c.y + 4, 14 * c.s);
+    circle(sx - 20 * c.s, c.y + 5, 13 * c.s); circle(sx + 5 * c.s, c.y - 8, 12 * c.s);
+  }
+}
+
+function crowAt(sx, sy, flap) {
+  ctx.fillStyle = '#15151a';
+  ctx.fillRect(sx - 4, sy - 4, 9, 5);                       // body
+  ctx.fillRect(sx + 4, sy - 7, 4, 4);                       // head
+  ctx.fillStyle = '#e8a13c'; ctx.fillRect(sx + 8, sy - 6, 3, 2);  // beak
+  ctx.fillStyle = '#15151a'; ctx.fillRect(sx - 8, sy - 6, 5, 3);  // tail
+  if (flap !== undefined) ctx.fillRect(sx - 2, sy - (flap ? 10 : 1), 8, 3);            // wings
+  else { ctx.fillRect(sx - 3, sy + 1, 2, 3); ctx.fillRect(sx + 1, sy + 1, 2, 3); }      // legs
+}
+function drawWiresLayer(dark) {
+  const top = GROUND_Y - 172;
+  ctx.strokeStyle = dark ? '#0c0c10' : '#1b1b1f'; ctx.lineWidth = 1.6;
+  for (let wx = 140; wx < LEN - 400; wx += 460) {
+    if (wx + 460 < cam.x || wx > cam.x + W) continue;
+    const sx = px(wx);
+    ctx.fillStyle = dark ? '#241c12' : '#4e3b24';            // pole + crossarm
+    ctx.fillRect(sx - 3, top - 10, 6, GROUND_Y - top + 10);
+    ctx.fillRect(sx - 16, top - 6, 32, 4);
+    for (let j = 0; j < 3; j++) {                            // sagging cables
+      const y0 = top + j * 6;
+      ctx.beginPath(); ctx.moveTo(sx, y0);
+      ctx.quadraticCurveTo(sx + 230, y0 + 26 + j * 7, px(wx + 460), y0);
+      ctx.stroke();
+    }
+    if (((wx / 460) | 0) % 3 === 1) crowAt(sx + 226, top + 14);
+  }
+  // crow committee over Madina Meat Shop
+  if (4200 > cam.x - 300 && 4500 < cam.x + W + 300) {
+    crowAt(px(4310), top + 16); crowAt(px(4368), top + 19); crowAt(px(4425), top + 15);
+    crowAt(px(4400), GROUND_Y - 192);                        // one on the shop roof
+  }
+  // flying crows
+  const t = performance.now();
+  for (let i = 0; i < 2; i++) {
+    const wxf = (t * 0.045 + i * 5200) % LEN;
+    const sxf = px(wxf);
+    if (sxf < -40 || sxf > W + 40) continue;
+    crowAt(sxf, 150 + Math.sin(t / 900 + i * 2) * 35, Math.floor(t / 160 + i) % 2 === 0);
   }
 }
 
@@ -775,12 +855,19 @@ function drawUnderpass(dark) {
     ctx.lineTo(vpx + (midNear - vpx) * f1, vpy + (H - vpy) * f1);
     ctx.stroke();
   }
-  // a couple of tiny cars crossing underneath (recede with the road)
+  // road edge lines converging with the lanes
+  ctx.strokeStyle = 'rgba(230,225,180,0.55)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(nearL, H); ctx.lineTo(vpx - 13, vpy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(nearR, H); ctx.lineTo(vpx + 13, vpy); ctx.stroke();
+  // tiny cars in their own lanes: left lane approaches, right lane recedes
   const t = performance.now() / 1000;
+  const halfNear = (nearR - nearL) / 2;
   for (let k = 0; k < 2; k++) {
-    const f = ((t * 0.25 + k * 0.5) % 1);                  // 0 far -> 1 near
-    const cw = 6 + f * 26, ch = 3 + f * 12;
-    const cxp = vpx + (midNear - vpx) * f - cw / 2;
+    const f = k === 0 ? ((t * 0.22) % 1) : (1 - ((t * 0.19 + 0.45) % 1));
+    const half = 13 + (halfNear - 13) * f;
+    const lane = (k === 0 ? -0.5 : 0.5) * half;             // clear of the centre line
+    const cw = 5 + f * 24, ch = 3 + f * 11;
+    const cxp = vpx + (midNear - vpx) * f + lane - cw / 2;
     const cyp = vpy + (H - vpy) * f - ch;
     ctx.fillStyle = k ? '#c0392b' : '#2980b9';
     ctx.fillRect(cxp, cyp, cw, ch);
@@ -816,6 +903,32 @@ function drawBuilding(b, dark) {
       ctx.fillStyle = dark ? (Math.random() < 0.04 ? '#ffe9a8' : '#11112a') : '#2c4b66';
       ctx.fillRect(wx, wy, 18, 22);
     }
+  }
+  // texture: water tank, dish antenna, AC units, drain pipe (deterministic per building)
+  const seed = (b.x * 7919) % 97;
+  if (b.w >= 130) {
+    if (seed % 3 !== 0) {                                    // rooftop water tank
+      ctx.fillStyle = dark ? shade('#caa53d', 0.4) : '#caa53d';
+      ctx.fillRect(x + 14 + (seed % 30), top - 14, 24, 14);
+      ctx.fillStyle = dark ? shade('#8c6f1f', 0.4) : '#8c6f1f';
+      ctx.fillRect(x + 14 + (seed % 30), top - 14, 24, 3);
+    }
+    if (seed % 4 === 1) {                                    // satellite dish
+      ctx.fillStyle = '#cfd6dc'; ctx.beginPath(); ctx.arc(x + b.w - 26, top - 6, 9, Math.PI * 0.9, Math.PI * 1.9); ctx.fill();
+      ctx.fillStyle = '#9aa4ad'; ctx.fillRect(x + b.w - 27, top - 8, 3, 9);
+    }
+    if (b.h > 150) {                                          // AC units
+      ctx.fillStyle = '#c8cfd4'; ctx.fillRect(x + 12 + (seed % 24), top + 64, 15, 9);
+      ctx.fillStyle = '#9aa4ad'; ctx.fillRect(x + 12 + (seed % 24), top + 68, 15, 2);
+      if (seed % 2) {
+        ctx.fillStyle = '#c8cfd4'; ctx.fillRect(x + b.w - 36, top + 118, 15, 9);
+        ctx.fillStyle = '#9aa4ad'; ctx.fillRect(x + b.w - 36, top + 122, 15, 2);
+      }
+    }
+    ctx.fillStyle = 'rgba(40,40,40,0.25)';                    // drain pipe + damp stain
+    ctx.fillRect(x + b.w - 10, top + 30, 4, b.h - 30);
+    ctx.fillStyle = 'rgba(60,50,30,0.12)';
+    ctx.fillRect(x + b.w - 16, top + 40, 14, b.h - 44);
   }
   // signboard
   const sh = 26;
@@ -1208,6 +1321,21 @@ function drawVehicle(v) {
     ctx.fillStyle = '#935116'; ctx.fillRect(x + 56, y - 4, v.w - 64, 12);      // dirt heaped
     ctx.fillStyle = '#222'; circle(x + 22, y + v.h - 9, 12); circle(x + v.w - 60, y + v.h - 9, 12); circle(x + v.w - 24, y + v.h - 9, 12);
   }
+  // small headlight on every nose — half of them broken, very Karachi
+  if (v.kind !== 'icecream') {
+    const on = v.lightOn !== false;
+    const hy = y + v.h - 20;
+    if (on) {
+      ctx.fillStyle = '#fff6c0'; circle(x + 2, hy, 3);
+      ctx.globalAlpha = (isDark() || isFlicker()) ? 0.30 : 0.10;
+      ctx.fillStyle = '#fff3a8';
+      ctx.beginPath(); ctx.moveTo(x + 2, hy - 3); ctx.lineTo(x - 26, hy - 10); ctx.lineTo(x - 26, hy + 10); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = '#3c3c3c'; circle(x + 2, hy, 3);
+      ctx.fillStyle = '#222'; ctx.fillRect(x, hy - 1, 5, 2);
+    }
+  }
 }
 
 function drawPlayer() {
@@ -1492,15 +1620,100 @@ function drawDecor(d, dark) {
     ctx.fillStyle = GD; ctx.fillRect(x - 4, GROUND_Y - 49, 9, 2);
     if (Math.floor(t / 180) % 4 === 0) { ctx.fillStyle = '#fff8dc'; ctx.fillRect(x + 2, GROUND_Y - 45, 2, 2); } // shimmer
   } else if (d.kind === 'excavator') {
-    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x, GROUND_Y - 14, 64, 12);            // track
-    ctx.fillStyle = '#444'; for (let i = 0; i < 6; i++) circle(x + 8 + i * 9, GROUND_Y - 8, 4);
-    ctx.fillStyle = '#f1c40f'; ctx.fillRect(x + 8, GROUND_Y - 44, 40, 30);         // cab
-    ctx.fillStyle = '#d4ac0d'; ctx.fillRect(x + 8, GROUND_Y - 44, 40, 4);
-    ctx.fillStyle = '#2c3e50'; ctx.fillRect(x + 12, GROUND_Y - 40, 17, 14);        // window
-    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 6;                                // boom + arm
-    ctx.beginPath(); ctx.moveTo(x + 44, GROUND_Y - 38); ctx.lineTo(x + 74, GROUND_Y - 32); ctx.lineTo(x + 86, GROUND_Y - 6); ctx.stroke();
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x, GROUND_Y - 22, 104, 20);            // track
+    ctx.fillStyle = '#444'; for (let i = 0; i < 7; i++) circle(x + 12 + i * 14, GROUND_Y - 12, 6);
+    ctx.fillStyle = '#f1c40f'; ctx.fillRect(x + 12, GROUND_Y - 70, 64, 48);        // cab
+    ctx.fillStyle = '#d4ac0d'; ctx.fillRect(x + 12, GROUND_Y - 70, 64, 6);
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(x + 18, GROUND_Y - 62, 27, 22);        // window
+    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 9;                                // boom + arm
+    ctx.beginPath(); ctx.moveTo(x + 70, GROUND_Y - 60); ctx.lineTo(x + 118, GROUND_Y - 50); ctx.lineTo(x + 138, GROUND_Y - 10); ctx.stroke();
     ctx.fillStyle = '#e0a800';                                                      // bucket
-    ctx.beginPath(); ctx.moveTo(x + 82, GROUND_Y - 12); ctx.lineTo(x + 96, GROUND_Y - 9); ctx.lineTo(x + 91, GROUND_Y + 2); ctx.lineTo(x + 78, GROUND_Y - 2); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + 131, GROUND_Y - 19); ctx.lineTo(x + 154, GROUND_Y - 14); ctx.lineTo(x + 146, GROUND_Y + 3); ctx.lineTo(x + 125, GROUND_Y - 3); ctx.closePath(); ctx.fill();
+    // piled sand + trash beside it
+    ctx.fillStyle = '#d9b36c';
+    ctx.beginPath(); ctx.moveTo(x + 152, GROUND_Y); ctx.lineTo(x + 185, GROUND_Y - 34); ctx.lineTo(x + 222, GROUND_Y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c9a35c'; ctx.beginPath(); ctx.moveTo(x + 175, GROUND_Y); ctx.lineTo(x + 196, GROUND_Y - 20); ctx.lineTo(x + 215, GROUND_Y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2f3640';                                                     // trash bags
+    circle(x - 14, GROUND_Y - 7, 8); circle(x - 26, GROUND_Y - 5, 6); circle(x - 7, GROUND_Y - 4, 5);
+    ctx.fillStyle = '#57606f'; ctx.fillRect(x - 30, GROUND_Y - 3, 30, 3);
+  } else if (d.kind === 'tables') {
+    for (let i = 0; i < 2; i++) {
+      const tx = x + i * 46;
+      ctx.fillStyle = '#f4f6f6'; ctx.beginPath(); ctx.ellipse(tx + 12, GROUND_Y - 26, 14, 5, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#d8dcdc'; ctx.fillRect(tx + 10, GROUND_Y - 24, 4, 24);
+      ctx.fillStyle = '#f4f6f6';
+      ctx.fillRect(tx - 7, GROUND_Y - 16, 8, 4); ctx.fillRect(tx - 7, GROUND_Y - 12, 3, 12);   // chair L
+      ctx.fillRect(tx + 25, GROUND_Y - 16, 8, 4); ctx.fillRect(tx + 30, GROUND_Y - 12, 3, 12); // chair R
+    }
+    drawPedestrian(x - 14, GROUND_Y, '#16607a', 0, true, 'man');                   // diners
+    drawPedestrian(x + 66, GROUND_Y, '#6c3483', 0, true, 'floral');
+  } else if (d.kind === 'chaiwala') {
+    ctx.fillStyle = '#7a4a21'; ctx.fillRect(x, GROUND_Y - 34, 56, 34);             // counter
+    ctx.fillStyle = '#925a2b'; ctx.fillRect(x - 3, GROUND_Y - 40, 62, 8);
+    ctx.fillStyle = '#c0c7cc'; ctx.fillRect(x + 8, GROUND_Y - 56, 18, 16);         // samovar
+    ctx.fillRect(x + 24, GROUND_Y - 52, 8, 3);                                      // spout
+    ctx.fillStyle = '#fff'; ctx.fillRect(x + 36, GROUND_Y - 47, 12, 4); ctx.fillRect(x + 38, GROUND_Y - 51, 8, 4); // cups
+    steam(x + 17, GROUND_Y - 64);
+    drawPedestrian(x + 66, GROUND_Y, '#9b3d12', 0, true, 'man');
+    ctx.fillStyle = '#7a1010'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('CHAI', x + 28, GROUND_Y - 62); ctx.textAlign = 'left';
+  } else if (d.kind === 'chickenwala') {
+    ctx.fillStyle = '#8d6e63'; ctx.fillRect(x, GROUND_Y - 30, 62, 30);             // table
+    ctx.strokeStyle = '#aab2b8'; ctx.lineWidth = 1;
+    ctx.strokeRect(x + 4, GROUND_Y - 52, 54, 22);                                   // cage
+    for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x + 4 + i * 9, GROUND_Y - 52); ctx.lineTo(x + 4 + i * 9, GROUND_Y - 30); ctx.stroke(); }
+    for (const cxx of [x + 14, x + 36]) {                                            // chickens
+      ctx.fillStyle = '#f5f1e6'; circle(cxx, GROUND_Y - 38, 6); circle(cxx + 5, GROUND_Y - 42, 4);
+      ctx.fillStyle = '#d63031'; ctx.fillRect(cxx + 4, GROUND_Y - 47, 3, 3);
+      ctx.fillStyle = '#e8a13c'; ctx.fillRect(cxx + 8, GROUND_Y - 42, 4, 2);
+    }
+    ctx.fillStyle = '#1b1b1f'; ctx.fillRect(x + 64, GROUND_Y - 36, 36, 30);         // blackboard
+    ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 2; ctx.strokeRect(x + 64, GROUND_Y - 36, 36, 30);
+    ctx.fillStyle = '#f4f6f6'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('ZINDA', x + 82, GROUND_Y - 27);
+    ctx.fillText('600', x + 82, GROUND_Y - 19);
+    ctx.fillText('RUPAY', x + 82, GROUND_Y - 11);
+    ctx.textAlign = 'left';
+    drawPedestrian(x + 112, GROUND_Y, '#5b3a29', 0, true, 'man');
+  } else if (d.kind === 'cat') {
+    const col = d.tint || '#b58a5a';
+    ctx.fillStyle = col;
+    ctx.fillRect(x - 8, GROUND_Y - 10, 16, 6);                                      // body
+    const hx = d.dir > 0 ? x + 6 : x - 12;
+    ctx.fillRect(hx, GROUND_Y - 14, 6, 6);                                          // head
+    ctx.fillRect(hx, GROUND_Y - 16, 2, 3); ctx.fillRect(hx + 4, GROUND_Y - 16, 2, 3); // ears
+    ctx.fillRect(d.dir > 0 ? x - 11 : x + 8, GROUND_Y - 16, 3, 9);                  // tail up
+    const sw2 = Math.sin(performance.now() / 130) > 0 ? 1 : -1;
+    ctx.fillRect(x - 6 + sw2, GROUND_Y - 4, 3, 4); ctx.fillRect(x + 3 - sw2, GROUND_Y - 4, 3, 4);
+  } else if (d.kind === 'cow') {
+    const st = Math.sin(performance.now() / 260) * 2;
+    ctx.fillStyle = '#f2ede3'; ctx.fillRect(x - 20, GROUND_Y - 34, 40, 19);         // body
+    ctx.fillStyle = '#7a5230';                                                       // patches
+    ctx.fillRect(x - 14, GROUND_Y - 32, 11, 9); ctx.fillRect(x + 4, GROUND_Y - 26, 12, 9);
+    ctx.fillStyle = '#f2ede3'; ctx.fillRect(x - 30, GROUND_Y - 38, 12, 12);          // head
+    ctx.fillStyle = '#d8cfc0'; ctx.fillRect(x - 33, GROUND_Y - 31, 6, 5);            // muzzle
+    ctx.fillStyle = '#5b4a36'; ctx.fillRect(x - 31, GROUND_Y - 41, 4, 3); ctx.fillRect(x - 23, GROUND_Y - 41, 4, 3); // horns
+    ctx.fillStyle = '#f2ede3';
+    ctx.fillRect(x - 17 + st, GROUND_Y - 15, 5, 15); ctx.fillRect(x - 7 - st, GROUND_Y - 15, 5, 15);
+    ctx.fillRect(x + 4 + st, GROUND_Y - 15, 5, 15); ctx.fillRect(x + 13 - st, GROUND_Y - 15, 5, 15);
+    ctx.fillStyle = '#7a5230'; ctx.fillRect(x + 19, GROUND_Y - 33, 3, 14);           // tail
+  } else if (d.kind === 'billboard') {
+    const pw = 232, ph2 = 70, topY = GROUND_Y - 286;
+    ctx.fillStyle = '#5d6770'; ctx.fillRect(x + pw / 2 - 5, topY + ph2, 10, GROUND_Y - topY - ph2);
+    ctx.fillStyle = d.bg || '#ffffff'; ctx.fillRect(x, topY, pw, ph2);
+    ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 3; ctx.strokeRect(x, topY, pw, ph2);
+    ctx.textAlign = 'center';
+    if (d.lines.length === 1) {
+      ctx.fillStyle = d.fg || '#fff'; ctx.font = 'bold 22px monospace';
+      ctx.fillText(d.lines[0], x + pw / 2, topY + ph2 / 2 + 8);
+    } else {
+      for (let i = 0; i < d.lines.length; i++) {
+        ctx.fillStyle = d.fg || '#c0392b';
+        ctx.font = (i === d.lines.length - 1 ? 'italic 9px' : 'bold 13px') + ' monospace';
+        ctx.fillText(d.lines[i], x + pw / 2, topY + 20 + i * 18);
+      }
+    }
+    ctx.textAlign = 'left';
   } else if (d.kind === 'desibbq') {
     const t = performance.now();
     // customers behind/around
@@ -1583,7 +1796,19 @@ function drawDecor(d, dark) {
     for (let i = 0; i < 5; i++) { ctx.fillStyle = '#e84393'; circle(x + 3 + i * 3, GROUND_Y - 28 - (i % 2) * 3, 3); }
     speechBubble(x, GROUND_Y - 80, 'flower lelein?');
   } else if (d.kind === 'pedestrian') {
-    drawPedestrian(x, GROUND_Y, d.tint, performance.now() / 150 + d.base, false);
+    drawPedestrian(x, GROUND_Y, d.tint, performance.now() / 150 + d.base, false, d.type);
+    if (d.smoker) {
+      const mx = x + 6, my = GROUND_Y - 36;
+      ctx.fillStyle = '#fff'; ctx.fillRect(mx, my, 5, 2);
+      ctx.fillStyle = '#ff5e3a'; ctx.fillRect(mx + 5, my, 2, 2);
+      if (Math.floor(performance.now() / 400) % 2 === 0) {
+        ctx.globalAlpha = 0.35; ctx.fillStyle = '#ccc';
+        circle(mx + 8, my - 7, 3); circle(mx + 11, my - 13, 4);
+        ctx.globalAlpha = 1;
+      }
+    }
+    if (d.greet && typeof player !== 'undefined' && player && Math.abs(player.x - d.x) < 140)
+      speechBubble(x, GROUND_Y - 80, 'salam bhai kese ho');
   } else if (d.kind === 'finish') {
     const gy = groundYAt(d.x);
     ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, gy - 170, 10, 170);
