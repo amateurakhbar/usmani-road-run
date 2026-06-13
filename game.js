@@ -275,7 +275,7 @@ setInterval(() => {
   // background loop
   if (mNext < now) mNext = now + 0.05;
   while (mNext < now + 0.3) {
-    if (state === 'play' && musicOn && !paused && !bgMusic) {  // synth only if no mp3 track
+    if ((state === 'title' || (state === 'play' && !bgMusic)) && musicOn && !paused) {  // 8-bit on title; synth in play only if no mp3
       const useB = Math.floor(mStep / 32) % 2 === 1;        // alternate A/B sections
       const L = (useB ? LEAD_B : LEAD)[mStep % 32];
       if (L) noteAt(L, mNext, MSTEP * 0.85, 'square', musicGain, 0.9);
@@ -348,7 +348,7 @@ function buildLevel() {
   // --- Zone B: Block 7 / Block 4 commercial strip ---
   addBldg(960,  200, 260, 'SUNNY ARCADE', '#f5d76e', '#e0b13c', { awning: '#2ecc71' });
   addBldg(1160, 150, 200, 'MASTER ELECTRONICS', '#74b9ff', '#3a7bd5', { awning: '#e74c3c' });
-  addBldg(1330, 165, 215, 'JANNAT RESTAURANT', '#f5b942', '#d99a1f', { sign: '#7a1010', signText: '#fff5d0', awning: '#b71540' });
+  decors.push({ kind: 'jannat', x: 1330, w: 175, h: 250 });    // residential block w/ Jannat BBQ شاپ
   // open dining space next to Jannat (no building here) — outdoor plastic tables
   decors.push({ kind: 'tables', x: 1490 });
   addBldg(1680, 200, 240, 'MASKAN VENUE', '#fde3a7', '#f5b041');
@@ -832,10 +832,20 @@ function drawSkyPlanes(nf) {
   const t = performance.now();
   if (state !== 'play' && state !== 'ride') return;
   const el = ((tEnd || performance.now()) - (tStart || performance.now())) / 1000;
-  // daytime flight ~5:30pm (around 33s in), one pass across ~18s
-  if (el > 28 && el < 46) {
-    const f = (el - 28) / 18;                                  // 0..1 across the sky
-    drawPlane(f * (W + 120) - 60, 56 + Math.sin(f * 3) * 6, 1.1, t);
+  // daytime flight ~5:30pm: one pass across ~18s, leaving a chemtrail that fades over 30s
+  if (el > 28 && el < 76) {
+    const planeF = (el - 28) / 18;                             // >1 after it has exited
+    for (let i = 0; i <= 64; i++) {                            // chemtrail puffs along the flown path
+      const ff = i / 64;
+      if (ff > Math.min(1, planeF)) break;
+      const age = el - (28 + ff * 18), a = 1 - age / 30;
+      if (a <= 0) continue;
+      const tx = ff * (W + 120) - 60, ty = 56 + Math.sin(ff * 3) * 6;
+      ctx.globalAlpha = 0.55 * a; ctx.fillStyle = '#eef3f7';
+      ctx.fillRect(tx - 18, ty - 2, 8, 4);
+    }
+    ctx.globalAlpha = 1;
+    if (planeF <= 1.05) drawPlane(planeF * (W + 120) - 60, 56 + Math.sin(planeF * 3) * 6, 1.4, t);
   }
   // night flights: recurring once it's dark
   if (nf > 0.6) {
@@ -843,7 +853,7 @@ function drawSkyPlanes(nf) {
       const cyc = (t / 1000 + k * 9) % 16;                     // a plane every ~16s, staggered
       if (cyc < 11) {
         const f = cyc / 11;
-        drawPlane(f * (W + 140) - 70, 44 + k * 34 + Math.sin(f * 4 + k) * 5, 0.95, t + k * 300);
+        drawPlane(f * (W + 140) - 70, 44 + k * 34 + Math.sin(f * 4 + k) * 5, 1.2, t + k * 300);
       }
     }
   }
@@ -2034,6 +2044,8 @@ function drawDecor(d, dark) {
       }
     }
     ctx.globalAlpha = 1;
+  } else if (d.kind === 'jannat') {
+    drawJannatFacade(x, GROUND_Y, d.w, d.h, dark);
   } else if (d.kind === 'masjid') {
     const w = 185, top = GROUND_Y - 250;
     ctx.fillStyle = '#1f7a4d'; ctx.fillRect(x, top + 38, w, 250 - 38);          // body
@@ -2237,38 +2249,108 @@ function heart(x, y, r) {
   ctx.fill();
 }
 
-function drawTitle() {
-  // mini scene
-  drawSkylineTitle();
-  ctx.fillStyle = '#1e272e'; ctx.textAlign = 'center';
-  ctx.font = 'bold 52px monospace';
-  ctx.fillStyle = '#c0392b';
-  ctx.fillText('USMANI ROAD RUN', W / 2 + 3, 173);
-  ctx.fillStyle = '#ffd32a';
-  ctx.fillText('USMANI ROAD RUN', W / 2, 170);
-  ctx.font = 'bold 20px monospace'; ctx.fillStyle = '#2c3e50';
-  ctx.fillText('Maskan Chowrangi  →  Gulshan Bridge', W / 2, 215);
-  ctx.font = '16px monospace'; ctx.fillStyle = '#34495e';
-  ctx.fillText('Dodge the rickshaws. Mind the manholes. Survive the load shedding.', W / 2, 255);
-  ctx.font = 'bold 17px monospace'; ctx.fillStyle = '#1e272e';
-  ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 320);
-  if (Math.floor(performance.now() / 500) % 2 === 0) {
-    ctx.font = 'bold 26px monospace'; ctx.fillStyle = '#c0392b';
-    ctx.fillText('PRESS ENTER TO START', W / 2, 400);
+function drawJannatFacade(x, baseY, w, h, dark) {
+  const top = baseY - h, shopH = 60;
+  // residential tower
+  ctx.fillStyle = dark ? '#5a5340' : '#e8dcc0'; ctx.fillRect(x, top, w, h);
+  ctx.fillStyle = dark ? '#4a4534' : '#d8c8a4'; ctx.fillRect(x, top, w, 8); ctx.fillRect(x, top, 6, h);
+  // parapet + rooftop water tank
+  ctx.fillStyle = dark ? '#3f3a2c' : '#cdbf96'; ctx.fillRect(x - 3, top - 6, w + 6, 6);
+  ctx.fillStyle = dark ? '#6b5f33' : '#b9a86a'; ctx.fillRect(x + 16, top - 18, 26, 12);
+  ctx.fillStyle = dark ? '#52471f' : '#9a8a4a'; ctx.fillRect(x + 16, top - 18, 26, 3);
+  // apartment floors: windows + small balconies (above the shopfront)
+  const floors = Math.floor((h - 14 - shopH) / 44);
+  for (let f = 0; f < floors; f++) {
+    const fy = top + 16 + f * 44;
+    for (let wx = x + 14; wx < x + w - 22; wx += 40) {
+      ctx.fillStyle = dark ? (((wx + f) % 3) ? '#16213a' : '#ffdf9a') : '#9ab2c4';
+      ctx.fillRect(wx, fy, 22, 20);                              // window
+      ctx.fillStyle = dark ? '#0e1730' : '#7892a6'; ctx.fillRect(wx, fy + 14, 22, 6);
+    }
+    ctx.fillStyle = dark ? '#4a4838' : '#c9b98c';                // balcony slab + rail
+    ctx.fillRect(x + 8, fy + 22, w - 16, 4);
+    ctx.fillStyle = dark ? '#5a5644' : '#b7a877';
+    for (let bx = x + 12; bx < x + w - 12; bx += 8) ctx.fillRect(bx, fy + 26, 2, 7);
   }
-  ctx.font = '13px monospace'; ctx.fillStyle = '#7f8c8d';
-  ctx.fillText('Allama Shabbir Ahmed Usmani Road · Gulshan-e-Iqbal · Karachi', W / 2, 480);
+  // lower-ground shopfront: dark glass, red awning, sign in Urdu + English
+  const sy = baseY - shopH;
+  ctx.fillStyle = dark ? '#14161c' : '#23252b'; ctx.fillRect(x + 5, sy, w - 10, shopH);
+  ctx.fillStyle = '#3a3f48';
+  for (let gx = x + 10; gx < x + w - 12; gx += 26) ctx.fillRect(gx, sy + 6, 20, shopH - 14);  // glass panes
+  ctx.fillStyle = '#ff7b54';                                     // tandoor glow inside
+  ctx.fillRect(x + w - 30, sy + shopH - 22, 16, 16);
+  ctx.fillStyle = '#b71540'; ctx.fillRect(x - 2, sy - 8, w + 4, 12);   // awning
+  ctx.fillStyle = '#fff'; for (let ax = x; ax < x + w; ax += 18) ctx.fillRect(ax, sy - 8, 9, 12);
+  ctx.fillStyle = '#7a1010'; ctx.fillRect(x + 8, sy - 34, w - 16, 24); // sign board
+  ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 1; ctx.strokeRect(x + 8, sy - 34, w - 16, 24);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff5d0'; ctx.font = 'bold 15px sans-serif';
+  ctx.fillText('جنت بی بی کیو', x + w / 2, sy - 22);
+  ctx.font = 'bold 8px monospace'; ctx.fillStyle = '#ffd98a';
+  ctx.fillText('JANNAT BBQ', x + w / 2, sy - 12);
   ctx.textAlign = 'left';
 }
-function drawSkylineTitle() {
-  ctx.fillStyle = '#a8c8b8';
-  for (let i = 0; i < Math.ceil(W / 115) + 1; i++) {
-    const hh = 60 + ((i * 67) % 80);
-    ctx.fillRect(i * 115, H - 120 - hh, 90, hh + 120);
+
+function drawTitle() {
+  const t = performance.now();
+  // warm late-afternoon sky
+  const sg = ctx.createLinearGradient(0, 0, 0, H);
+  sg.addColorStop(0, '#8ec5e8'); sg.addColorStop(1, '#f6d9a8');
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+  // low sun
+  ctx.globalAlpha = 0.25; ctx.fillStyle = '#ffd86b'; circle(W * 0.2, 150, 50);
+  ctx.globalAlpha = 1; ctx.fillStyle = '#ffd86b'; circle(W * 0.2, 150, 30);
+  // back skyline
+  ctx.fillStyle = '#b9cdba';
+  for (let i = 0; i < Math.ceil(W / 120) + 1; i++) { const hh = 80 + (i * 67) % 90; ctx.fillRect(i * 120, H - 150 - hh + 40, 96, hh + 150); }
+  // scene ground
+  const baseY = H - 56;
+  ctx.fillStyle = '#b9b1a3'; ctx.fillRect(0, baseY, W, 16);
+  ctx.fillStyle = '#555259'; ctx.fillRect(0, baseY + 16, W, H);
+  ctx.fillStyle = '#d9d090'; for (let i = 0; i < W; i += 80) ctx.fillRect(i + (Math.floor(t / 40) % 80), baseY + 40, 40, 5);
+  // Jannat BBQ building (centre-right), with the crowd out front
+  const jw = 200, jx = W / 2 - jw / 2 + 70;
+  drawJannatFacade(jx, baseY, jw, 250, false);
+  // BBQ grill with smoke (in front of Jannat)
+  const gx = jx - 26;
+  ctx.fillStyle = '#3a3a3a'; ctx.fillRect(gx, baseY - 26, 52, 14);
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(gx, baseY - 14, 52, 14);
+  ctx.fillStyle = '#ff5e3a'; for (let i = 0; i < 6; i++) ctx.fillRect(gx + 4 + i * 8, baseY - 24, 5, 4);  // coals
+  ctx.fillStyle = '#6d4c2f'; for (let i = 0; i < 5; i++) ctx.fillRect(gx + 5 + i * 9, baseY - 27, 7, 3);  // seekhs
+  ctx.globalAlpha = 0.5; ctx.fillStyle = '#cfcfcf';
+  for (let i = 0; i < 5; i++) { const px2 = gx + 8 + i * 9, ph = (t / 18 + i * 40) % 90; circle(px2 + Math.sin((t / 300) + i) * 6, baseY - 30 - ph, 4 + ph / 28); }
+  ctx.globalAlpha = 1;
+  drawPedestrian(gx + 26, baseY, '#9b3d12', 0, true, 'man');     // the cook
+  // crowd near Jannat (men + floral women, with faces)
+  const crowd = [['man', '#34495e'], ['floral', '#e84393'], ['man', '#16607a'], ['floral', '#8e44ad'], ['man', '#5b3a29'], ['man', '#7f8c8d'], ['floral', '#c0392b']];
+  for (let i = 0; i < crowd.length; i++) {
+    const cx = jx - 120 + i * 26 + Math.sin(t / 600 + i) * 2;
+    drawPedestrian(cx, baseY, crowd[i][1], t / 150 + i * 9, false, crowd[i][0]);
   }
-  ctx.fillStyle = '#555259'; ctx.fillRect(0, H - 60, W, 60);
-  ctx.fillStyle = '#d9d090';
-  for (let i = 0; i < W; i += 80) ctx.fillRect(i, H - 32, 40, 5);
+  // plastic chairs + a diner
+  ctx.fillStyle = '#f4f6f6'; ctx.fillRect(jx - 150, baseY - 14, 8, 4); ctx.fillRect(jx - 150, baseY - 11, 3, 11);
+  drawPedestrian(jx - 146, baseY, '#2980b9', 0, true, 'man');
+  // a cat
+  ctx.fillStyle = '#b58a5a'; ctx.fillRect(jx + 150, baseY - 9, 14, 5); ctx.fillRect(jx + 162, baseY - 13, 5, 5); ctx.fillRect(jx + 147, baseY - 14, 3, 8);
+
+  // --- title text ---
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 44px monospace';
+  ctx.fillStyle = '#1e272e'; ctx.fillText('BARA AYA', W / 2 + 3, 92);
+  ctx.fillStyle = '#c0392b'; ctx.fillText('BARA AYA', W / 2, 89);
+  ctx.font = 'bold 40px monospace';
+  ctx.fillStyle = '#1e272e'; ctx.fillText('ALLAMA ROAD RUN', W / 2 + 3, 137);
+  ctx.fillStyle = '#ffd32a'; ctx.fillText('ALLAMA ROAD RUN', W / 2, 134);
+  ctx.font = 'bold 16px monospace'; ctx.fillStyle = '#2c3e50';
+  ctx.fillText('Maskan Chowrangi  →  Gulshan Bridge', W / 2, 165);
+  // controls + prompt in a soft panel
+  if (Math.floor(t / 500) % 2 === 0) {
+    ctx.font = 'bold 26px monospace'; ctx.fillStyle = '#c0392b';
+    ctx.fillText('PRESS ENTER TO START', W / 2, 215);
+  }
+  ctx.font = 'bold 14px monospace'; ctx.fillStyle = '#2c3e50';
+  ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 250);
+  ctx.textAlign = 'left';
 }
 
 function drawWaitingBike(sx, gy, withPassenger, smoking, bob, riderLift) {
@@ -2355,11 +2437,11 @@ function drawCredits() {
   // a plane crosses in the first ~10s, then planes recur through the credits
   if (creditsT < 620) {
     const f = creditsT / 620;
-    drawPlane(f * (W + 140) - 70, 70 + Math.sin(f * 3) * 6, 1.1, t);
+    drawPlane(f * (W + 140) - 70, 70 + Math.sin(f * 3) * 6, 1.3, t);
   }
   for (let k = 0; k < 2; k++) {
     const cyc = (t / 1000 + k * 10 + 5) % 18;
-    if (cyc < 12) { const f = cyc / 12; drawPlane(f * (W + 140) - 70, 38 + k * 30 + Math.sin(f * 4 + k) * 5, 0.95, t + k * 250); }
+    if (cyc < 12) { const f = cyc / 12; drawPlane(f * (W + 140) - 70, 38 + k * 30 + Math.sin(f * 4 + k) * 5, 1.15, t + k * 250); }
   }
   // soft night clouds drifting behind the buildings — credits rise out from here
   for (let i = 0; i < 5; i++) {
@@ -2384,7 +2466,7 @@ function drawCredits() {
   // --- rolling credits text (drawn here, so the NEAR buildings in front hide its lower part) ---
   const secs = ((tEnd - tStart) / 1000).toFixed(1);
   const lines = [
-    ['USMANI ROAD RUN', 'title'],
+    ['BARA AYA ALLAMA ROAD RUN', 'title'],
     ['Maskan Chowrangi → Gulshan Bridge', 'sub'],
     ['', ''],
     ['- RUN STATS -', 'head'],
