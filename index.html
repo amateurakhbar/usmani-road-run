@@ -47,6 +47,21 @@
   #btnL { left: max(3vw, env(safe-area-inset-left)); }
   #btnR { left: calc(max(3vw, env(safe-area-inset-left)) + 88px); }
   #btnJ { right: max(3vw, env(safe-area-inset-right)); width: 86px; height: 86px; }
+  #btnFS {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,.45);
+    background: rgba(30,30,45,.5);
+    color: #ffd32a;
+    font-size: 18px; line-height: 1; padding: 0;
+    z-index: 15; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #btnFS:active { background: rgba(255,211,42,.35); }
   #rotate {
     display: none;
     position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
@@ -64,7 +79,8 @@
   <button class="tbtn" id="btnR" aria-label="right">&#9654;</button>
   <button class="tbtn" id="btnJ" aria-label="jump">&#9650;</button>
 </div>
+<button id="btnFS" aria-label="fullscreen" title="Fullscreen">&#9187;</button>
 <div id="rotate">&#128241; Phone ghoomao &mdash; landscape mein zyada maza hai</div>
-<script src="game.js?v=20260613ze"></script>
+<script src="game.js?v=20260613zf"></script>
 </body>
 </html>

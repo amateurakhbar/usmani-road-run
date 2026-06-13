@@ -38,6 +38,45 @@ if (window.visualViewport) visualViewport.addEventListener('resize', fitSoon);
 if (window.ResizeObserver) new ResizeObserver(fitSoon).observe(cv);
 fitCanvas();
 
+// ---------- fullscreen (reclaim the browser/system chrome for more play area) ----------
+function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+function fsSupported() {
+  const el = document.documentElement;
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+function enterFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (el.requestFullscreen) { const p = el.requestFullscreen({ navigationUI: 'hide' }); if (p) p.catch(() => {}); }
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } catch (e) {}
+}
+function exitFullscreen() {
+  try {
+    if (document.exitFullscreen) { const p = document.exitFullscreen(); if (p) p.catch(() => {}); }
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } catch (e) {}
+}
+function toggleFullscreen() { if (fsElement()) exitFullscreen(); else enterFullscreen(); }
+// auto-grab fullscreen the first time a touch player starts — once per page load only,
+// so deliberately exiting fullscreen isn't undone on the next restart.
+let fsAutoTried = false;
+function tryAutoFullscreen() {
+  if (fsAutoTried) return; fsAutoTried = true;
+  if (!fsElement() && fsSupported() && matchMedia('(pointer: coarse)').matches) enterFullscreen();
+}
+const fsBtn = document.getElementById('btnFS');
+if (fsBtn) {
+  if (!fsSupported()) fsBtn.style.display = 'none';        // e.g. iPhone Safari — hide non-functional button
+  else {
+    const press = e => { e.preventDefault(); e.stopPropagation(); initAudio(); toggleFullscreen(); };
+    fsBtn.addEventListener('click', press);
+    const syncIcon = () => { fsBtn.textContent = fsElement() ? '✕' : '⛶'; fitSoon(); };
+    document.addEventListener('fullscreenchange', syncIcon);
+    document.addEventListener('webkitfullscreenchange', syncIcon);
+  }
+}
+
 // ---------- sprite images (real photos used as sprites) ----------
 const sprites = {};
 function loadSprite(key, src, opts) {
@@ -529,6 +568,7 @@ function recordCheat(dir) {
 }
 
 function startGame() {
+  tryAutoFullscreen();   // touch devices: grab the full screen on first play
   player = { x: 60, y: GROUND_Y - 44, w: 26, h: 44, vx: 0, vy: 0, onGround: true, face: 1, anim: 0 };
   cam = { x: 0 };
   vehicles = [];
@@ -3304,6 +3344,11 @@ function loop(t) {
   updateMusicTracks();
   while (acc >= 16.666) { step(); acc -= 16.666; }
   draw();
+  // fullscreen toggle button: only on non-play screens (keeps the HUD corners clear)
+  if (fsBtn && fsSupported()) {
+    const disp = (state === 'play') ? 'none' : 'flex';
+    if (fsBtn.style.display !== disp) fsBtn.style.display = disp;
+  }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
