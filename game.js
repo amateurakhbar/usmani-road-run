@@ -14,8 +14,11 @@ ctx.imageSmoothingEnabled = false;
 // slides). JS only matches the INTERNAL resolution to the displayed aspect so
 // the bitmap never stretches and never goes stale.
 function fitCanvas() {
+  // prefer the visual viewport (most accurate visible area on iPad Safari w/ tab bar)
+  const vv = window.visualViewport;
   const r = cv.getBoundingClientRect();
-  const dispW = r.width || window.innerWidth, dispH = r.height || window.innerHeight;
+  const dispW = (vv && vv.width) || r.width || window.innerWidth;
+  const dispH = (vv && vv.height) || r.height || window.innerHeight;
   if (dispW < 2 || dispH < 2) return;                  // not laid out yet
   let ar = dispW / dispH;
   ar = Math.min(2.6, Math.max(1.0, ar));               // clamp absurd extremes only
@@ -147,7 +150,7 @@ let AC = null;
 function initAudio() {
   if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
   if (AC && AC.state === 'suspended') AC.resume();
-  if (ambient && !ambientStarted) { ambientStarted = true; ambient.play().catch(() => {}); }
+  lastMusicState = ''; updateMusicTracks();
 }
 function tone(freq, dur, type, vol, when, slide) {
   if (!AC) return;
@@ -174,14 +177,35 @@ const sfx = {
   phat:  () => tone(60 + Math.random() * 50, 0.05, 'square', 0.085, 0, 40),
 };
 
-// optional street-ambience loop: drop any owned audio at assets/ambience.mp3
-let ambient = null, ambientStarted = false;
+// user-supplied audio tracks (in assets/)
+let bgMusic = null, endMusic = null, meowAud = null;
 (() => {
-  const a = new Audio('assets/ambience.mp3');
-  a.loop = true; a.volume = 0.22;
-  a.addEventListener('canplaythrough', () => { ambient = a; }, { once: true });
-  a.onerror = () => {};
+  const m = new Audio('assets/music.mp3'); m.loop = true; m.volume = 0.5;
+  m.addEventListener('canplaythrough', () => { bgMusic = m; }, { once: true }); m.onerror = () => {};
+  const e = new Audio('assets/musicend.mp3'); e.loop = true; e.volume = 0.6;
+  e.addEventListener('canplaythrough', () => { endMusic = e; }, { once: true }); e.onerror = () => {};
+  const c = new Audio('assets/meow.mp3'); c.volume = 1.0; c.preload = 'auto';
+  c.addEventListener('canplaythrough', () => { meowAud = c; }, { once: true }); c.onerror = () => {};
 })();
+function playMeow() {                                    // first 2 seconds only, loud
+  if (!meowAud) { sfx.meow(); return; }
+  try { meowAud.currentTime = 0; meowAud.play().then(() => {
+    setTimeout(() => { try { meowAud.pause(); } catch (e) {} }, 2000);
+  }).catch(() => sfx.meow()); } catch (e) { sfx.meow(); }
+}
+// route background music by game state: music.mp3 in play, musicend.mp3 (from 0:48) in credits
+let lastMusicState = '';
+function updateMusicTracks() {
+  if (!musicOn) { if (bgMusic) bgMusic.pause(); if (endMusic) endMusic.pause(); return; }
+  const s = (state === 'credits') ? 'credits' : (state === 'play' || state === 'ride') ? 'play' : 'idle';
+  if (s === lastMusicState) return;
+  lastMusicState = s;
+  if (bgMusic) { if (s === 'play') bgMusic.play().catch(() => {}); else bgMusic.pause(); }
+  if (endMusic) {
+    if (s === 'credits') { try { endMusic.currentTime = 48; } catch (e) {} endMusic.play().catch(() => {}); }
+    else { endMusic.pause(); }
+  }
+}
 
 // ---------- music (original 8-bit chiptune, 90s Karachi pop flavor) ----------
 let musicOn = true;
@@ -241,7 +265,7 @@ setInterval(() => {
   // background loop
   if (mNext < now) mNext = now + 0.05;
   while (mNext < now + 0.3) {
-    if (state === 'play' && musicOn && !paused) {
+    if (state === 'play' && musicOn && !paused && !bgMusic) {  // synth only if no mp3 track
       const useB = Math.floor(mStep / 32) % 2 === 1;        // alternate A/B sections
       const L = (useB ? LEAD_B : LEAD)[mStep % 32];
       if (L) noteAt(L, mNext, MSTEP * 0.85, 'square', musicGain, 0.9);
@@ -253,7 +277,7 @@ setInterval(() => {
   // ethereal pad for the end credits
   if (cNext < now) cNext = now + 0.05;
   while (cNext < now + 0.3) {
-    if (state === 'credits' && musicOn) {
+    if (state === 'credits' && musicOn && !endMusic) {       // synth pad only if no mp3 track
       const P = PAD[cStep % PAD.length];
       noteAt(P, cNext, 1.6, 'sine', musicGain, 0.55);
       noteAt(P + 12, cNext + 0.1, 1.2, 'sine', musicGain, 0.18);
@@ -366,7 +390,7 @@ function buildLevel() {
   // --- Zone D: Block 2 — Disco Bakery ---
   addBldg(6700, 160, 200, 'CLINIC LAB', '#dfe6e9', '#b2bec3', { signText: '#c0392b' });
   // Disco Bakery — the icon
-  addBldg(6900, 280, 280, 'DISCO BAKERY', '#ffd32a', '#e8b50e', { sign: '#1e272e', signText: '#ffd32a', awning: '#1e272e' });
+  addBldg(6900, 280, 280, 'DISCO BAKERY', '#1c1c22', '#101015', { sign: '#ffd32a', signText: '#1c1c22', awning: '#ffd32a' });
   decors.push({ kind: 'signal', x: 7205 });
   decors.push({ kind: 'busstop', x: 7260 });
   platforms.push({ x: 7250, y: GROUND_Y - 100, w: 130, h: 10, shelter: true });
@@ -441,7 +465,7 @@ function buildLevel() {
   decors.push({ kind: 'foosball', x: 8600 });
   decors.push({ kind: 'excavator', x: 10720 });                 // parked excavator by a pothole
   decors.push({ kind: 'sand', x: 10830 });
-  decors.push({ kind: 'flowerseller', x: 6740 });               // rose seller near Disco
+  decors.push({ kind: 'flowerseller', x: 7280 });               // rose seller, just after the Disco signal
   decors.push({ kind: 'beggar', x: 2760, phrase: 'kuch dedo?' });
   decors.push({ kind: 'beggar', x: 8650, phrase: 'khuda kay naam pe kuch dedo', nearOnly: true });
   // pedestrians: ~40% female (half burqa, half floral), rest men
@@ -695,7 +719,7 @@ function step() {
       d.x += d.dir * 0.7;
       if (d.x > d.base + 170) d.dir = -1; else if (d.x < d.base - 170) d.dir = 1;
       const dxp = Math.abs(player.x - d.x);                  // meow every time you cross one
-      if (dxp < 38 && !d.meowed) { d.meowed = true; sfx.meow(); }
+      if (dxp < 44 && !d.meowed) { d.meowed = true; playMeow(); }
       else if (dxp > 220) d.meowed = false;
     }
     else if (d.kind === 'cow') { d.x += d.dir * 0.18; if (d.x > d.base + 320) d.dir = -1; else if (d.x < d.base - 320) d.dir = 1; }
@@ -739,7 +763,7 @@ function step() {
 function stepRide() {
   rideT++;
   if (rideT > 55) {
-    bikeX += 4.4;
+    bikeX += 2.3;
     if (rideT % 5 === 0 && Math.random() < 0.85) sfx.phat();   // phattay silencer
   }
   player.x = bikeX;
@@ -1973,6 +1997,7 @@ function drawDecor(d, dark) {
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('اکبر مسجد', x + w / 2, top + 27); ctx.textAlign = 'left';
   } else if (d.kind === 'fixit') {
+    const t = performance.now();
     ctx.fillStyle = '#16a085'; ctx.fillRect(x, GROUND_Y - 66, 72, 66);          // stall
     ctx.fillStyle = '#1abc9c'; ctx.fillRect(x - 4, GROUND_Y - 74, 80, 12);      // counter
     ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
@@ -1981,9 +2006,18 @@ function drawDecor(d, dark) {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#555'; ctx.fillRect(x + 18, GROUND_Y - 30, 36, 16);        // degh (pot)
     ctx.fillStyle = '#888'; ctx.fillRect(x + 16, GROUND_Y - 33, 40, 4);
-    // queue of needy people (non-interactive)
+    steam(x + 36, GROUND_Y - 42);
+    // server behind the counter
+    drawPedestrian(x + 50, GROUND_Y, '#ecf0f1', 0, true, 'man');
+    // hand passing a plate out to the front of the queue (animated)
+    const reach = (Math.sin(t / 500) * 0.5 + 0.5) * 26;        // arm extends + retracts
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(x + 58, GROUND_Y - 36, 8 + reach, 4); // arm
+    ctx.fillStyle = '#dfe6e9'; ctx.beginPath(); ctx.ellipse(x + 66 + reach, GROUND_Y - 35, 6, 2.5, 0, 0, 7); ctx.fill(); // plate
+    ctx.fillStyle = '#e67e22'; circle(x + 66 + reach, GROUND_Y - 37, 2.5);       // food on plate
+    // queue of needy people, the front one reaching back for the plate
     const qc = ['#8e44ad', '#c0392b', '#2980b9', '#d35400', '#27ae60'];
-    for (let i = 0; i < 5; i++) drawPedestrian(x + 90 + i * 19, GROUND_Y, qc[i], 0, true);
+    for (let i = 0; i < 5; i++) drawPedestrian(x + 92 + i * 19, GROUND_Y, qc[i], 0, true, 'man');
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(x + 84, GROUND_Y - 34, 8, 4);        // front person's outstretched hand
   } else if (d.kind === 'rollstall') {
     ctx.fillStyle = '#c0392b'; ctx.fillRect(x, GROUND_Y - 62, 84, 62);
     ctx.fillStyle = '#e74c3c'; ctx.fillRect(x - 4, GROUND_Y - 72, 92, 12);
@@ -2185,24 +2219,27 @@ function drawWaitingBike(sx, gy, withPassenger, smoking, bob, riderLift) {
     ctx.beginPath(); ctx.moveTo(sx, yy - 8); ctx.lineTo(sx + 20, yy - 24); ctx.lineTo(sx + 46, yy - 8); ctx.stroke();
     ctx.fillStyle = '#1a1a1a'; ctx.fillRect(sx + 12, yy - 27, 24, 4);
   }
-  // driver — green Bykea kit, black helmet
-  const dy0 = yy - 32 - lift;
-  ctx.fillStyle = '#0aa54f'; ctx.fillRect(sx + 26, dy0, 12, 17);                 // torso
-  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 36, dy0 + 3, 7, 3);              // arm to bars
-  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 28, dy0 - 9, 9, 9);              // head
-  ctx.fillStyle = '#15151a'; ctx.fillRect(sx + 27, dy0 - 12, 11, 7);           // black helmet
-  ctx.fillStyle = '#0a3a1e'; ctx.fillRect(sx + 35, dy0 - 8, 4, 3);             // visor
-  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(sx + 28, dy0 + 17, 5, 11);           // leg
-  if (withPassenger) {
-    ctx.fillStyle = '#eef2f7'; ctx.fillRect(sx + 10, dy0 + 1, 12, 16);          // hero, white shirt
-    ctx.fillStyle = '#8e2433'; ctx.fillRect(sx + 4, dy0 + 2, 6, 13);            // backpack
-    ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 12, dy0 - 8, 9, 9);           // head
-    ctx.fillStyle = '#1b1e24'; ctx.fillRect(sx + 11, dy0 - 10, 11, 4);         // hair
-    ctx.fillStyle = '#1e272e'; ctx.fillRect(sx + 18, dy0 - 4, 2, 2);           // eye
-    ctx.strokeStyle = '#7a4a2b'; ctx.lineWidth = 1;                             // small smile
-    ctx.beginPath(); ctx.arc(sx + 16, dy0 - 1, 2.2, 0.25, Math.PI - 0.25); ctx.stroke();
-    ctx.fillStyle = '#2c3a92'; ctx.fillRect(sx + 12, dy0 + 17, 5, 10);         // jeans
+  // riders SITTING on the bike (butt on the seat, thighs forward, shins down)
+  const seat = yy - 24 - lift;
+  if (withPassenger) {                                          // pillion (our hero), behind — drawn first
+    ctx.fillStyle = '#22336a'; ctx.fillRect(sx + 6, seat, 11, 4);              // thigh
+    ctx.fillStyle = '#2c3a92'; ctx.fillRect(sx + 14, seat + 2, 4, 12);         // shin
+    ctx.fillStyle = '#8e2433'; ctx.fillRect(sx + 1, seat - 13, 5, 14);         // backpack
+    ctx.fillStyle = '#eef2f7'; ctx.fillRect(sx + 5, seat - 15, 11, 16);        // shirt
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 6, seat - 24, 9, 9);          // head
+    ctx.fillStyle = '#1b1e24'; ctx.fillRect(sx + 5, seat - 26, 11, 4);         // hair
+    ctx.fillStyle = '#1e272e'; ctx.fillRect(sx + 12, seat - 20, 2, 2);         // eye
+    ctx.strokeStyle = '#7a4a2b'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(sx + 10, seat - 17, 2.2, 0.25, Math.PI - 0.25); ctx.stroke(); // smile
   }
+  // driver — green Bykea kit, black helmet, front
+  ctx.fillStyle = '#0a7e3a'; ctx.fillRect(sx + 26, seat, 12, 4);               // thigh
+  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(sx + 35, seat + 2, 4, 12);           // shin to peg
+  ctx.fillStyle = '#0aa54f'; ctx.fillRect(sx + 24, seat - 15, 11, 16);         // torso
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 33, seat - 11, 10, 3);          // arm to bars
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 25, seat - 24, 9, 9);           // head
+  ctx.fillStyle = '#15151a'; ctx.fillRect(sx + 24, seat - 27, 11, 7);          // black helmet
+  ctx.fillStyle = '#0a3a1e'; ctx.fillRect(sx + 32, seat - 23, 4, 3);           // visor
   if (smoking) {                                                                 // phattay exhaust
     ctx.globalAlpha = 0.5; ctx.fillStyle = '#aab';
     circle(sx - 8 - Math.random() * 8, yy - 12, 3 + Math.random() * 3);
@@ -2227,77 +2264,39 @@ function drawRideScene() {
 function drawCredits() {
   const t = performance.now();
   const SY = H - 112;                                          // top of the night-ride strip
-  const RD = H - 96;                                           // road top — wide carriageway
-  const scroll = creditsT * 3.4;
-  // ethereal night-sky backdrop
+  const RD = H - 96;                                           // road top
+  const scroll = creditsT * 2.1;                              // slower, serene drift
+  // night sky
   const g2 = ctx.createLinearGradient(0, 0, 0, H);
-  g2.addColorStop(0, '#10122b'); g2.addColorStop(1, '#2b1f3d');
+  g2.addColorStop(0, '#0c0e26'); g2.addColorStop(1, '#241a36');
   ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 26; i++) {                              // drifting stars
-    const sy = (i * 97) % H, sx2 = ((i * 211) + t * 0.008 * (10 + i % 7)) % W;
-    ctx.globalAlpha = 0.25 + 0.5 * Math.abs(Math.sin(t / 1200 + i));
-    ctx.fillStyle = '#cfd8ff'; ctx.fillRect(sx2, sy * 0.55, 2, 2);
+  for (let i = 0; i < 26; i++) {                              // stars
+    const sy = (i * 97) % H, sx2 = ((i * 211) + t * 0.006 * (10 + i % 7)) % W;
+    ctx.globalAlpha = 0.22 + 0.45 * Math.abs(Math.sin(t / 1300 + i));
+    ctx.fillStyle = '#cfd8ff'; ctx.fillRect(sx2, sy * 0.5, 2, 2);
   }
   ctx.globalAlpha = 1;
-  // --- night scene (behind the credits text) ---
-  // far skyline layer (slow parallax, dim)
+  // soft night clouds drifting behind the buildings — credits rise out from here
+  for (let i = 0; i < 5; i++) {
+    let cx = ((i * 230 + 60) - scroll * 0.10) % (W + 360); if (cx < -200) cx += W + 360;
+    const cy = 80 + (i * 53) % 130;
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = '#aeb6e0';
+    circle(cx, cy, 26); circle(cx + 26, cy + 6, 20); circle(cx - 26, cy + 7, 18); circle(cx + 6, cy - 12, 17);
+    ctx.globalAlpha = 1;
+  }
+  // far skyline (dim, behind the text)
   for (let bi = 0; bi < 9; bi++) {
-    const bw = 90 + (bi * 71) % 70, bh = 40 + (bi * 53) % 46;
-    let bx = ((bi * 250) - (scroll * 0.16)) % (W + 320);
-    if (bx < -240) bx += W + 320;
+    const bw = 90 + (bi * 71) % 70, bh = 38 + (bi * 53) % 40;
+    let bx = ((bi * 250) - (scroll * 0.16)) % (W + 320); if (bx < -240) bx += W + 320;
     if (bx > W + 20) continue;
     ctx.fillStyle = '#10132a'; ctx.fillRect(bx, SY - bh, bw, bh + (H - SY));
     for (let r = 0; r < bh / 16 - 1; r++) for (let col = 0; col < bw / 13 - 1; col++) {
-      ctx.fillStyle = (((col * 7 + r * 13 + bi * 17) % 7) < 2) ? '#c9b06a' : '#0a0d20';   // stable on/off
+      ctx.fillStyle = (((col * 7 + r * 13 + bi * 17) % 7) < 2) ? '#c9b06a' : '#0a0d20';
       ctx.fillRect(bx + 6 + col * 13, SY - bh + 9 + r * 16, 6, 7);
     }
   }
-  // near apartment blocks with stable lit/dark windows (no flicker)
-  for (let bi = 0; bi < 11; bi++) {
-    const bw = 64 + (bi * 53) % 56, bh = 54 + (bi * 97) % 70;
-    let bx = ((bi * 210) - (scroll * 0.35)) % (W + 250);
-    if (bx < -180) bx += W + 250;
-    if (bx > W + 20) continue;
-    ctx.fillStyle = '#161a32'; ctx.fillRect(bx, SY - bh, bw, bh + (H - SY));
-    for (let r = 0; r < bh / 15 - 1; r++) for (let col = 0; col < bw / 13 - 1; col++) {
-      // lit state keyed to the window's own index + building id => steady, never flickers
-      ctx.fillStyle = (((col * 11 + r * 7 + bi * 31) % 5) < 2) ? '#ffd98a' : '#0d1024';
-      ctx.fillRect(bx + 6 + col * 13, SY - bh + 9 + r * 15, 7, 8);
-    }
-  }
-  // wide road, two lanes
-  ctx.fillStyle = '#1b1e30'; ctx.fillRect(0, RD, W, H - RD);
-  ctx.fillStyle = '#2a2e44'; ctx.fillRect(0, RD, W, 4);
-  ctx.fillStyle = '#3a3f5c'; ctx.fillRect(0, (RD + H) / 2 - 1, W, 2);
-  ctx.fillStyle = '#d9d090';
-  for (let dx2 = -(scroll % 110); dx2 < W; dx2 += 110) { ctx.fillRect(dx2, RD + 26, 44, 4); ctx.fillRect(dx2 + 55, H - 22, 44, 4); }
-  // realistic street lights with downward cones
-  for (let lx = -(scroll % 300); lx < W + 80; lx += 300) {
-    ctx.fillStyle = '#3a4061'; ctx.fillRect(lx, RD - 86, 5, 86); ctx.fillRect(lx, RD - 86, 30, 4);
-    ctx.fillStyle = '#fff0c4'; ctx.fillRect(lx + 25, RD - 84, 9, 6);
-    const grd = ctx.createLinearGradient(lx + 29, RD - 80, lx + 29, H);
-    grd.addColorStop(0, 'rgba(255,220,150,0.22)'); grd.addColorStop(1, 'rgba(255,220,150,0)');
-    ctx.fillStyle = grd;
-    ctx.beginPath(); ctx.moveTo(lx + 25, RD - 78); ctx.lineTo(lx + 34, RD - 78); ctx.lineTo(lx + 60, H); ctx.lineTo(lx - 2, H); ctx.closePath(); ctx.fill();
-  }
-  // SHAHRAH-E-FAISAL board — comes toward us like oncoming traffic (slides right→left), stays readable
-  const period = W + 900;
-  const gb = W + 120 - ((creditsT * 3.0) % period);
-  if (gb > -240 && gb < W + 40) {
-    ctx.fillStyle = '#34507a'; ctx.fillRect(gb + 36, RD - 56, 6, 56); ctx.fillRect(gb + 198, RD - 56, 6, 56); // posts to road
-    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(gb + 14, RD - 62, 212, 26);      // board, low over the road
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gb + 14, RD - 62, 212, 26);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('SHAHRAH-E-FAISAL', gb + 120, RD - 44);
-  }
-  // a rare passing car
-  const carP = (creditsT * 5.0) % (W * 5 + 800);
-  if (carP < W + 200) {
-    const cx2 = W + 100 - carP;
-    ctx.fillStyle = '#171c30'; ctx.fillRect(cx2, RD + 16, 52, 13); ctx.fillRect(cx2 + 12, RD + 7, 28, 10);
-    ctx.fillStyle = '#ff3b30'; ctx.fillRect(cx2 + 49, RD + 18, 3, 3);
-  }
-  // --- rolling credits text (on top of the scene) ---
+  // --- rolling credits text (drawn here, so the NEAR buildings in front hide its lower part) ---
   const secs = ((tEnd - tStart) / 1000).toFixed(1);
   const lines = [
     ['USMANI ROAD RUN', 'title'],
@@ -2319,11 +2318,11 @@ function drawCredits() {
     ['Shukriya for playing', 'head'],
   ];
   const total = lines.length * 34;
-  const yStart = H - ((creditsT * 0.55) % (total + H + 60));
+  const yStart = H - ((creditsT * 0.42) % (total + H + 80));   // slow, looping roll
   ctx.textAlign = 'center';
   for (let i = 0; i < lines.length; i++) {
     const ly = yStart + i * 34;
-    if (ly < -20 || ly > SY - 8) continue;
+    if (ly < -20 || ly > H) continue;
     const st = lines[i][1];
     if (st === 'title') { ctx.font = 'bold 34px monospace'; ctx.fillStyle = '#ffd32a'; }
     else if (st === 'head') { ctx.font = 'bold 20px monospace'; ctx.fillStyle = '#7fe3a8'; }
@@ -2332,14 +2331,50 @@ function drawCredits() {
     else { ctx.font = '17px monospace'; ctx.fillStyle = '#e8ecf4'; }
     ctx.fillText(lines[i][0], W / 2, ly);
   }
+  ctx.textAlign = 'left';
+  // --- near apartment blocks IN FRONT of the text (text emerges from behind their roofs) ---
+  for (let bi = 0; bi < 11; bi++) {
+    const bw = 64 + (bi * 53) % 56, bh = 70 + (bi * 97) % 64;
+    let bx = ((bi * 210) - (scroll * 0.35)) % (W + 250); if (bx < -180) bx += W + 250;
+    if (bx > W + 20) continue;
+    ctx.fillStyle = '#161a32'; ctx.fillRect(bx, SY - bh, bw, bh + (H - SY));
+    ctx.fillStyle = '#0f1226'; ctx.fillRect(bx, SY - bh, bw, 4);               // roof line
+    for (let r = 0; r < bh / 15 - 1; r++) for (let col = 0; col < bw / 13 - 1; col++) {
+      ctx.fillStyle = (((col * 11 + r * 7 + bi * 31) % 5) < 2) ? '#ffd98a' : '#0d1024';
+      ctx.fillRect(bx + 6 + col * 13, SY - bh + 9 + r * 15, 7, 8);
+    }
+  }
+  // wide road (foreground)
+  ctx.fillStyle = '#1b1e30'; ctx.fillRect(0, RD, W, H - RD);
+  ctx.fillStyle = '#2a2e44'; ctx.fillRect(0, RD, W, 4);
+  ctx.fillStyle = '#3a3f5c'; ctx.fillRect(0, (RD + H) / 2 - 1, W, 2);
+  ctx.fillStyle = '#d9d090';
+  for (let dx2 = -(scroll % 110); dx2 < W; dx2 += 110) { ctx.fillRect(dx2, RD + 26, 44, 4); ctx.fillRect(dx2 + 55, H - 22, 44, 4); }
+  for (let lx = -(scroll % 300); lx < W + 80; lx += 300) {     // street lights w/ cones
+    ctx.fillStyle = '#3a4061'; ctx.fillRect(lx, RD - 86, 5, 86); ctx.fillRect(lx, RD - 86, 30, 4);
+    ctx.fillStyle = '#fff0c4'; ctx.fillRect(lx + 25, RD - 84, 9, 6);
+    const grd = ctx.createLinearGradient(lx + 29, RD - 80, lx + 29, H);
+    grd.addColorStop(0, 'rgba(255,220,150,0.20)'); grd.addColorStop(1, 'rgba(255,220,150,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.moveTo(lx + 25, RD - 78); ctx.lineTo(lx + 34, RD - 78); ctx.lineTo(lx + 60, H); ctx.lineTo(lx - 2, H); ctx.closePath(); ctx.fill();
+  }
+  const period = W + 900;                                       // SHAHRAH-E-FAISAL oncoming board
+  const gb = W + 120 - ((creditsT * 2.0) % period);
+  if (gb > -240 && gb < W + 40) {
+    ctx.fillStyle = '#34507a'; ctx.fillRect(gb + 36, RD - 56, 6, 56); ctx.fillRect(gb + 198, RD - 56, 6, 56);
+    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(gb + 14, RD - 62, 212, 26);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gb + 14, RD - 62, 212, 26);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('SHAHRAH-E-FAISAL', gb + 120, RD - 44); ctx.textAlign = 'left';
+  }
   // our bike — fixed position, gentle bob
-  const bob = Math.sin(creditsT / 9) * 1.25;                    // gentler bob (50% less)
-  drawWaitingBike(W * 0.32, H - 14, true, Math.floor(creditsT / 6) % 3 === 0, bob);
+  const bob = Math.sin(creditsT / 11) * 1.2;
+  drawWaitingBike(W * 0.32, H - 14, true, Math.floor(creditsT / 7) % 3 === 0, bob);
   if (Math.floor(t / 600) % 2 === 0) {
     ctx.textAlign = 'center'; ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#ffd32a';
-    ctx.fillText('press R  /  tap to restart', W / 2, SY - 16);
+    ctx.fillText('press R  /  tap to restart', W / 2, H - 6);
+    ctx.textAlign = 'left';
   }
-  ctx.textAlign = 'left';
 }
 
 function drawGameOver() {
@@ -2406,6 +2441,7 @@ function loop(t) {
   // self-healing viewport: re-check the real display size ~4x/sec so the canvas
   // can never stay stuck at a wrong size after a flaky mobile resize event.
   if (++refitTick % 15 === 0) fitCanvas();
+  updateMusicTracks();
   while (acc >= 16.666) { step(); acc -= 16.666; }
   draw();
   requestAnimationFrame(loop);
