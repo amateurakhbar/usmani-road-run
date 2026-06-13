@@ -150,7 +150,7 @@ let AC = null;
 function initAudio() {
   if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
   if (AC && AC.state === 'suspended') AC.resume();
-  lastMusicState = ''; updateMusicTracks();
+  musicTarget = ''; updateMusicTracks();
 }
 function tone(freq, dur, type, vol, when, slide) {
   if (!AC) return;
@@ -177,34 +177,44 @@ const sfx = {
   phat:  () => tone(60 + Math.random() * 50, 0.05, 'square', 0.085, 0, 40),
 };
 
-// user-supplied audio tracks (in assets/)
-let bgMusic = null, endMusic = null, meowAud = null;
-(() => {
-  const m = new Audio('assets/music.mp3'); m.loop = true; m.volume = 0.5;
-  m.addEventListener('canplaythrough', () => { bgMusic = m; }, { once: true }); m.onerror = () => {};
-  const e = new Audio('assets/musicend.mp3'); e.loop = true; e.volume = 0.6;
-  e.addEventListener('canplaythrough', () => { endMusic = e; }, { once: true }); e.onerror = () => {};
-  const c = new Audio('assets/meow.mp3'); c.volume = 1.0; c.preload = 'auto';
-  c.addEventListener('canplaythrough', () => { meowAud = c; }, { once: true }); c.onerror = () => {};
-})();
+// user-supplied audio tracks (in assets/) — refs assigned immediately (no fragile gating)
+const bgMusic = new Audio('assets/music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.5; bgMusic.preload = 'auto';
+const endMusic = new Audio('assets/musicend.mp3'); endMusic.loop = true; endMusic.volume = 0.36; endMusic.preload = 'auto';
+const meowAud = new Audio('assets/meow.mp3'); meowAud.volume = 1.0; meowAud.preload = 'auto';
+let endSeeked = false;
+// once metadata is ready, jump musicend.mp3 to 0:48 (and keep it there each loop)
+endMusic.addEventListener('loadedmetadata', () => { try { endMusic.currentTime = 48; endSeeked = true; } catch (e) {} });
+endMusic.addEventListener('seeked', () => { endSeeked = true; });
+
 function playMeow() {                                    // first 2 seconds only, loud
-  if (!meowAud) { sfx.meow(); return; }
-  try { meowAud.currentTime = 0; meowAud.play().then(() => {
+  try {
+    meowAud.currentTime = 0;
+    const p = meowAud.play();
+    if (p) p.catch(() => sfx.meow());
     setTimeout(() => { try { meowAud.pause(); } catch (e) {} }, 2000);
-  }).catch(() => sfx.meow()); } catch (e) { sfx.meow(); }
+  } catch (e) { sfx.meow(); }
 }
 // route background music by game state: music.mp3 in play, musicend.mp3 (from 0:48) in credits
-let lastMusicState = '';
+let musicTarget = '';
 function updateMusicTracks() {
-  if (!musicOn) { if (bgMusic) bgMusic.pause(); if (endMusic) endMusic.pause(); return; }
-  const s = (state === 'credits') ? 'credits' : (state === 'play' || state === 'ride') ? 'play' : 'idle';
-  if (s === lastMusicState) return;
-  lastMusicState = s;
-  if (bgMusic) { if (s === 'play') bgMusic.play().catch(() => {}); else bgMusic.pause(); }
-  if (endMusic) {
-    if (s === 'credits') { try { endMusic.currentTime = 48; } catch (e) {} endMusic.play().catch(() => {}); }
-    else { endMusic.pause(); }
+  const want = !musicOn ? 'none'
+    : (state === 'credits') ? 'end'
+    : (state === 'play' || state === 'ride') ? 'bg' : 'none';
+  // (re)assert the target every call so a track that failed to start gets retried
+  if (want === 'bg') {
+    endMusic.pause();
+    if (bgMusic.paused) bgMusic.play().catch(() => {});
+  } else if (want === 'end') {
+    bgMusic.pause();
+    if (musicTarget !== 'end') { try { endMusic.currentTime = 48; } catch (e) {} }   // restart intro skip on entry
+    if (endMusic.paused) {
+      const p = endMusic.play();
+      if (p) p.then(() => { if (endMusic.currentTime < 47) { try { endMusic.currentTime = 48; } catch (e) {} } }).catch(() => {});
+    }
+  } else {
+    bgMusic.pause(); endMusic.pause();
   }
+  musicTarget = want;
 }
 
 // ---------- music (original 8-bit chiptune, 90s Karachi pop flavor) ----------
