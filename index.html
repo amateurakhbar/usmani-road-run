@@ -9,19 +9,21 @@
 <style>
   html, body {
     margin: 0; padding: 0;
-    height: 100vh;            /* fallback */
-    height: 100dvh;          /* tracks the actual visible area on mobile */
-    width: 100vw; width: 100dvw;
+    width: 100%; height: 100%;
     background: #1a1423;
-    display: flex; align-items: center; justify-content: center;
     overflow: hidden;
     touch-action: none;
     -webkit-user-select: none; user-select: none;
   }
   canvas {
+    /* CSS owns the visual size and tracks the viewport (incl. mobile address bar).
+       game.js only matches the internal resolution to this box's aspect. */
+    position: fixed; inset: 0;
+    width: 100vw; width: 100dvw;
+    height: 100vh; height: 100dvh;
+    display: block;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    /* sizing is set dynamically by fitCanvas() in game.js */
     background: #87ceeb;
     touch-action: none;
   }
@@ -62,6 +64,6 @@
   <button class="tbtn" id="btnJ" aria-label="jump">&#9650;</button>
 </div>
 <div id="rotate">&#128241; Phone ghoomao &mdash; landscape mein zyada maza hai</div>
-<script src="game.js?v=20260613a"></script>
+<script src="game.js?v=20260613b"></script>
 </body>
 </html>

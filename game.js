@@ -10,28 +10,29 @@ const H = 540;
 let W = 960;                 // dynamic: follows the device aspect ratio
 ctx.imageSmoothingEnabled = false;
 
-// size the internal resolution to the screen so the game fills any device
+// CSS fills the screen (it tracks the viewport, even as the mobile address bar
+// slides). JS only matches the INTERNAL resolution to the displayed aspect so
+// the bitmap never stretches and never goes stale.
 function fitCanvas() {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const MIN_AR = 1.2, MAX_AR = 2.4;            // sane gameplay range
-  const ar = vw / vh;
-  const clamped = Math.min(MAX_AR, Math.max(MIN_AR, ar));
-  W = Math.round(H * clamped);
-  cv.width = W; cv.height = H;
-  if (ar >= MIN_AR && ar <= MAX_AR) {           // fill the screen exactly
-    cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
-  } else if (ar > MAX_AR) {                     // ultra-wide: pillarbox
-    cv.style.height = vh + 'px'; cv.style.width = Math.round(vh * clamped) + 'px';
-  } else {                                      // portrait: letterbox
-    cv.style.width = vw + 'px'; cv.style.height = Math.round(vw / clamped) + 'px';
-  }
-  ctx.imageSmoothingEnabled = false;            // canvas resize resets ctx state
+  const r = cv.getBoundingClientRect();
+  const dispW = r.width || window.innerWidth, dispH = r.height || window.innerHeight;
+  if (dispW < 2 || dispH < 2) return;                  // not laid out yet
+  let ar = dispW / dispH;
+  ar = Math.min(2.6, Math.max(1.0, ar));               // clamp absurd extremes only
+  const newW = Math.round(H * ar);
+  if (Math.abs(newW - W) < 4) return;                  // ignore micro-jitter (no flicker)
+  W = newW; cv.width = W; cv.height = H;
+  ctx.imageSmoothingEnabled = false;                   // resize resets ctx state
+  // camera re-clamps itself every step(), so no fix-up needed here
 }
-addEventListener('resize', fitCanvas);
-addEventListener('orientationchange', () => setTimeout(fitCanvas, 250));
-addEventListener('pageshow', fitCanvas);                       // iOS back/forward cache
-addEventListener('load', () => setTimeout(fitCanvas, 300));    // iOS late viewport settle
-if (window.visualViewport) visualViewport.addEventListener('resize', fitCanvas);
+let fitT = 0;
+function fitSoon() { clearTimeout(fitT); fitT = setTimeout(fitCanvas, 120); }
+addEventListener('resize', fitSoon);
+addEventListener('orientationchange', () => setTimeout(fitCanvas, 300));
+addEventListener('pageshow', fitSoon);
+addEventListener('load', () => setTimeout(fitCanvas, 200));
+if (window.visualViewport) visualViewport.addEventListener('resize', fitSoon);
+if (window.ResizeObserver) new ResizeObserver(fitSoon).observe(cv);
 fitCanvas();
 
 // ---------- sprite images (real photos used as sprites) ----------
