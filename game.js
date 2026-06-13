@@ -2518,30 +2518,40 @@ function drawOwner(cx, gy, t) {
   const panSide = Math.sin(t / 700) > 0 ? 1 : -1;
   const phase = t / 800;  // slow stride cycle
 
-  // bending legs: thigh + shin each drawn as a parallelogram (23px total)
+  // bending legs: thigh + shin as parallelograms; one leg swings while the other is planted
   const hipY = gy - 23;
-  const thighH = 12, shinH = 11, lean = 5;
-  const lP = Math.sin(phase), rP = -lP;
+  const thighH = 12, lean = 5;
 
   function drawLeg(hipX, legP) {
-    const kx = hipX + legP * lean;
-    const ky = hipY + thighH;
-    const fx = kx - legP * (lean * 0.55);
+    // legP > 0 → swing phase: knee bends forward visibly
+    // legP ≤ 0 → stance phase: leg nearly straight (no backward bend)
+    let kx, ky, fx;
+    if (legP > 0) {
+      kx = hipX + Math.round(legP * lean);          // knee swings forward
+      ky = hipY + thighH - Math.round(legP * 2);    // knee lifts slightly
+      fx = kx - Math.round(legP * lean * 0.65);     // foot trails behind bent knee
+    } else {
+      const b = -legP;                               // 0..1 stance amount
+      kx = hipX - Math.round(b * 2);                // barely leans back
+      ky = hipY + thighH;
+      fx = kx + Math.round(b * 1);                  // foot almost under knee
+    }
     ctx.fillStyle = '#dcdcd2';
     ctx.beginPath();
     ctx.moveTo(hipX - 2, hipY); ctx.lineTo(hipX + 3, hipY);
-    ctx.lineTo(Math.round(kx) + 3, ky); ctx.lineTo(Math.round(kx) - 2, ky);
+    ctx.lineTo(Math.round(kx) + 3, Math.round(ky)); ctx.lineTo(Math.round(kx) - 2, Math.round(ky));
     ctx.closePath(); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(Math.round(kx) - 2, ky); ctx.lineTo(Math.round(kx) + 3, ky);
+    ctx.moveTo(Math.round(kx) - 2, Math.round(ky)); ctx.lineTo(Math.round(kx) + 3, Math.round(ky));
     ctx.lineTo(Math.round(fx) + 3, gy - 2); ctx.lineTo(Math.round(fx) - 2, gy - 2);
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#2b2b2b';
     ctx.fillRect(Math.round(fx) - 3, gy - 2, 7, 2);
   }
 
-  drawLeg(cx - 3, lP);
-  drawLeg(cx + 3, rP);
+  // left and right legs use opposite phases — when one swings the other is planted
+  drawLeg(cx - 3, Math.sin(phase));
+  drawLeg(cx + 3, Math.sin(phase + Math.PI));
 
   // kameez (21px: gy-44 to gy-23)
   ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 8, gy - 44, 17, 21);
