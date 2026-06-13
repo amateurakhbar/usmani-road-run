@@ -106,6 +106,7 @@ const GROUND_Y = 470;          // top of footpath where player stands
 const LEN = 13200;             // world length in px
 const RAMP_X0 = 11600, RAMP_X1 = 12500, BRIDGE_Y = 330;
 const FINISH_X = 12830;
+const RIDER_X = 12780;         // your Bykea waits here
 const GRAV = 0.55, JUMP_V = -11.6, WALK = 3.6, BOOST = 5.5;
 
 function groundYAt(x) {
@@ -122,6 +123,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true; anyKeyPressed = true; initAudio();
   if (e.code === 'Enter' && (state === 'title' || state === 'win')) startGame();
   if (e.code === 'KeyR' && (state === 'gameover' || state === 'win')) startGame();
+  if ((e.code === 'KeyR' || e.code === 'Enter') && state === 'credits') state = 'title';
   if (e.code === 'KeyP' && state === 'play') paused = !paused;
   if (e.code === 'KeyM') musicOn = !musicOn;
   if (!e.repeat && (e.code === 'ArrowLeft' || e.code === 'KeyA')) recordCheat('L');
@@ -131,7 +133,11 @@ addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------- audio (tiny webaudio beeps) ----------
 let AC = null;
-function initAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (AC && AC.state === 'suspended') AC.resume(); }
+function initAudio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === 'suspended') AC.resume();
+  if (ambient && !ambientStarted) { ambientStarted = true; ambient.play().catch(() => {}); }
+}
 function tone(freq, dur, type, vol, when, slide) {
   if (!AC) return;
   const t = AC.currentTime + (when || 0);
@@ -152,7 +158,19 @@ const sfx = {
   win:   () => { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.16, 'square', 0.07, i * 0.13)); },
   fall:  () => tone(500, 0.5, 'square', 0.07, 0, 80),
   toll:  () => tone(360, 0.12, 'square', 0.05, 0, 200),
+  meow:  () => { tone(760, 0.16, 'sine', 0.07, 0, 540); tone(540, 0.22, 'sine', 0.05, 0.13, 400); },
+  caw:   () => { tone(880, 0.09, 'sawtooth', 0.045, 0, 500); tone(820, 0.09, 'sawtooth', 0.04, 0.11, 470); },
+  phat:  () => tone(60 + Math.random() * 50, 0.05, 'square', 0.085, 0, 40),
 };
+
+// optional street-ambience loop: drop any owned audio at assets/ambience.mp3
+let ambient = null, ambientStarted = false;
+(() => {
+  const a = new Audio('assets/ambience.mp3');
+  a.loop = true; a.volume = 0.22;
+  a.addEventListener('canplaythrough', () => { ambient = a; }, { once: true });
+  a.onerror = () => {};
+})();
 
 // ---------- music (original 8-bit chiptune, 90s Karachi pop flavor) ----------
 let musicOn = true;
@@ -169,6 +187,19 @@ const BASS = [
   55, 0, 55, 62, 0, 55, 0, 62, 52, 0, 52, 59, 0, 52, 0, 59,
   48, 0, 48, 55, 0, 48, 0, 55, 50, 0, 50, 57, 0, 50, 0, 57,
 ];
+// B section — second melody so the loop breathes
+const LEAD_B = [
+  79, 0, 81, 83, 81, 0, 79, 76, 74, 0, 76, 79, 76, 0, 0, 0,
+  72, 0, 74, 76, 79, 0, 76, 74, 71, 72, 74, 71, 67, 0, 0, 0,
+];
+const BASS_B = [
+  52, 0, 52, 59, 0, 52, 0, 59, 48, 0, 48, 55, 0, 48, 0, 55,
+  55, 0, 55, 62, 0, 55, 0, 62, 50, 0, 50, 57, 0, 50, 0, 57,
+];
+// ethereal end-credits pad (slow, washy)
+const PAD = [57, 64, 69, 72, 71, 67, 64, 60, 57, 64, 69, 76, 74, 71, 67, 64];
+let cStep = 0, cNext = 0;
+const CSTEP_T = 0.42;
 // ice cream wala jingle — Für Elise (Beethoven, public domain — the real Karachi cart anthem)
 const JINGLE = [
   76, 75, 76, 75, 76, 71, 74, 72,
@@ -200,12 +231,24 @@ setInterval(() => {
   if (mNext < now) mNext = now + 0.05;
   while (mNext < now + 0.3) {
     if (state === 'play' && musicOn && !paused) {
-      const L = LEAD[mStep % LEAD.length];
+      const useB = Math.floor(mStep / 32) % 2 === 1;        // alternate A/B sections
+      const L = (useB ? LEAD_B : LEAD)[mStep % 32];
       if (L) noteAt(L, mNext, MSTEP * 0.85, 'square', musicGain, 0.9);
-      const B = BASS[mStep % BASS.length];
+      const B = (useB ? BASS_B : BASS)[mStep % 32];
       if (B) noteAt(B, mNext, MSTEP * 0.95, 'triangle', musicGain, 1.5);
     }
     mStep++; mNext += MSTEP;
+  }
+  // ethereal pad for the end credits
+  if (cNext < now) cNext = now + 0.05;
+  while (cNext < now + 0.3) {
+    if (state === 'credits' && musicOn) {
+      const P = PAD[cStep % PAD.length];
+      noteAt(P, cNext, 1.6, 'sine', musicGain, 0.55);
+      noteAt(P + 12, cNext + 0.1, 1.2, 'sine', musicGain, 0.18);
+      if (cStep % 4 === 0) noteAt(P - 24, cNext, 2.0, 'triangle', musicGain, 0.5);
+    }
+    cStep++; cNext += CSTEP_T;
   }
   // ice cream jingle (always scheduled; volume controlled by proximity gain)
   if (jNext < now) jNext = now + 0.05;
@@ -361,7 +404,7 @@ function buildLevel() {
 
   // --- Zone F: Flyover ramp ---
   banners.push({ x: 11700, text: 'GULSHAN CHOWRANGI' });
-  decors.push({ kind: 'ferris', x: 12900 });   // Aladin Park in the distance
+  decors.push({ kind: 'bykea', x: RIDER_X });   // your ride home, waiting at the top
   decors.push({ kind: 'police', x: 12560 });    // police checkpoint at the bridge
   coinRow(11750, groundYAt(11850) - 80, 5, 40);
   coinRow(12100, groundYAt(12200) - 80, 5, 40);
@@ -390,7 +433,8 @@ function buildLevel() {
   decors.push({ kind: 'beggar', x: 2760, phrase: 'kuch dedo?' });
   decors.push({ kind: 'beggar', x: 8650, phrase: 'khuda kay naam pe kuch dedo', nearOnly: true });
   // pedestrians: ~40% female (half burqa, half floral), rest men
-  const peds = [620, 980, 1450, 2050, 2900, 3550, 4250, 5050, 5750, 6300, 7050, 7650, 8200, 9050, 10500, 11250, 12000];
+  // mostly on the main road; exactly one walker up on the bridge (12000)
+  const peds = [620, 980, 1450, 2050, 2900, 3550, 4250, 5050, 5750, 6300, 7050, 7650, 8200, 9050, 9650, 10500, 12000];
   const pedTints = ['#34495e', '#7f8c8d', '#16607a', '#5b3a29', '#3d6b4a', '#6c3483', '#2c3e50'];
   peds.forEach((pxx, i) => {
     const r = Math.random();
@@ -417,6 +461,8 @@ let iceCount = 0, lastIceX = -99999;
 let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
 let policeTollLeft = 20, policeTollCd = 0, policeTollDone = 0;   // chai-paani vasooli at the bridge
 let playerSay = { t: 0, text: '' }, sayTimer = 0, sayScript = [], sayDelay = 0;
+let rideT = 0, bikeX = 0, creditsT = 0, rupeesCollected = 0;
+const crowSeen = new Set();
 
 function recordCheat(dir) {
   cheatSeq.push(dir);
@@ -440,6 +486,7 @@ function startGame() {
   iceCount = 0; lastIceX = -99999;
   godMode = false; cheatSeq = [];     // cheat lasts one run only
   policeTollLeft = 20; policeTollCd = 0; policeTollDone = 0;
+  rideT = 0; bikeX = 0; creditsT = 0; rupeesCollected = 0; crowSeen.clear();
   playerSay = { t: 0, text: '' };
   sayScript = [['ghar chaltay hain', 95], ['bykea karun ya walk?', 95], ['chaltay hain ajj', 62], ['kitna he bura hoga', 62]];
   sayDelay = 110;
@@ -515,6 +562,8 @@ function respawn() {
 
 // ---------- update ----------
 function step() {
+  if (state === 'ride') { stepRide(); return; }
+  if (state === 'credits') { creditsT++; return; }
   if (state !== 'play' || paused) return;
 
   // input → velocity
@@ -590,7 +639,7 @@ function step() {
   for (const c of coinsAll) {
     if (c.taken) continue;
     if (player.x + player.w > c.x - 9 && player.x < c.x + 9 && player.y + player.h > c.y - 9 && player.y < c.y + 9) {
-      c.taken = true; rupees++; sfx.coin();
+      c.taken = true; rupees++; rupeesCollected++; sfx.coin();
     }
   }
   // powerups
@@ -629,7 +678,13 @@ function step() {
   // pedestrians, cats and the cow move along the footpath
   for (const d of decors) {
     if (d.kind === 'pedestrian') { d.x += d.dir * 0.45; if (d.x > d.base + 140) d.dir = -1; else if (d.x < d.base - 140) d.dir = 1; }
-    else if (d.kind === 'cat') { d.x += d.dir * 0.7; if (d.x > d.base + 170) d.dir = -1; else if (d.x < d.base - 170) d.dir = 1; }
+    else if (d.kind === 'cat') {
+      d.x += d.dir * 0.7;
+      if (d.x > d.base + 170) d.dir = -1; else if (d.x < d.base - 170) d.dir = 1;
+      const dxp = Math.abs(player.x - d.x);                  // meow every time you cross one
+      if (dxp < 38 && !d.meowed) { d.meowed = true; sfx.meow(); }
+      else if (dxp > 220) d.meowed = false;
+    }
     else if (d.kind === 'cow') { d.x += d.dir * 0.18; if (d.x > d.base + 320) d.dir = -1; else if (d.x < d.base - 320) d.dir = 1; }
   }
 
@@ -658,8 +713,31 @@ function step() {
 
   player.anim += Math.abs(player.vx) * 0.08;
 
-  // win!
-  if (player.x >= FINISH_X) { state = 'win'; tEnd = performance.now(); sfx.win(); }
+  // reach your Bykea at the top of the bridge -> ride away
+  if (player.x + player.w >= RIDER_X - 6) {
+    state = 'ride'; tEnd = performance.now();
+    rideT = 0; bikeX = RIDER_X;
+    for (const k in keys) keys[k] = false;
+    playerSay.t = 0;
+    sfx.win();                                   // level-clear jingle
+  }
+}
+
+function stepRide() {
+  rideT++;
+  if (rideT > 55) {
+    bikeX += 4.4;
+    if (rideT % 5 === 0 && Math.random() < 0.85) sfx.phat();   // phattay silencer
+  }
+  player.x = bikeX;
+  cam.x = Math.max(0, Math.min(LEN - W, bikeX - 330));
+  // traffic keeps flowing behind us
+  for (let i = vehicles.length - 1; i >= 0; i--) {
+    const v = vehicles[i];
+    v.x += v.vx;
+    if (v.x + v.w < cam.x - 200) vehicles.splice(i, 1);
+  }
+  if (bikeX > LEN + 80) { state = 'credits'; creditsT = 0; }
 }
 
 // ============================================================
@@ -679,6 +757,7 @@ function draw() {
   ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, H);
 
   if (state === 'title') { drawTitle(); return; }
+  if (state === 'credits') { drawCredits(); return; }
 
   drawSkyline(dark);
   drawClouds(dark);
@@ -694,6 +773,7 @@ function draw() {
   for (const p of powerups) if (!p.taken && p.x > cam.x - 30 && p.x < cam.x + W + 30) drawPowerup(p);
   for (const v of vehicles) if (v.x + v.w > cam.x && v.x < cam.x + W) drawVehicle(v);
   drawPlayer();
+  if (state === 'ride') drawRideScene();
   if (playerSay.t > 0 && state === 'play')
     speechBubble(px(player.x) + player.w / 2, Math.round(player.y) - 52, playerSay.text);
 
@@ -733,6 +813,11 @@ function drawClouds(dark) {
   }
 }
 
+function maybeCaw(id, sx, hasCrow) {
+  if (!hasCrow || state !== 'play') return;
+  if (sx < -10 || sx > W + 10) { crowSeen.delete(id); return; }
+  if (!crowSeen.has(id)) { crowSeen.add(id); if (Math.random() < 0.5) sfx.caw(); }   // 50% of sightings
+}
 function crowAt(sx, sy, flap) {
   ctx.fillStyle = '#15151a';
   ctx.fillRect(sx - 4, sy - 4, 9, 5);                       // body
@@ -745,9 +830,10 @@ function crowAt(sx, sy, flap) {
 function drawWiresLayer(dark) {
   const top = GROUND_Y - 172;
   ctx.strokeStyle = dark ? '#0c0c10' : '#1b1b1f'; ctx.lineWidth = 1.6;
-  for (let wx = 140; wx < LEN - 400; wx += 460) {
+  for (let wx = 140; wx < RAMP_X0 - 300; wx += 460) {       // wires don't climb the flyover
     if (wx + 460 < cam.x || wx > cam.x + W) continue;
     const sx = px(wx);
+    maybeCaw('pole' + wx, sx + 226, ((wx / 460) | 0) % 3 === 1);
     ctx.fillStyle = dark ? '#241c12' : '#4e3b24';            // pole + crossarm
     ctx.fillRect(sx - 3, top - 10, 6, GROUND_Y - top + 10);
     ctx.fillRect(sx - 16, top - 6, 32, 4);
@@ -761,6 +847,7 @@ function drawWiresLayer(dark) {
   }
   // crow committee over Madina Meat Shop
   if (4200 > cam.x - 300 && 4500 < cam.x + W + 300) {
+    maybeCaw('committee', px(4368), true);
     crowAt(px(4310), top + 16); crowAt(px(4368), top + 19); crowAt(px(4425), top + 15);
     crowAt(px(4400), GROUND_Y - 192);                        // one on the shop roof
   }
@@ -838,9 +925,11 @@ function drawUnderpass(dark) {
   if (dark) { g.addColorStop(0, '#2a3340'); g.addColorStop(1, '#1b2028'); }
   else { g.addColorStop(0, '#b7c4d0'); g.addColorStop(1, '#8c97a3'); }
   ctx.fillStyle = g; ctx.fillRect(x0, horizon - 60, W - x0, H - (horizon - 60));
-  // perspective cross-road receding to a vanishing point
-  const span = W - x0, vpx = x0 + span * 0.52, vpy = horizon - 48;
-  const nearL = x0 + span * 0.12, nearR = x0 + span * 0.9;
+  // perspective cross-road, anchored in WORLD space so it parallaxes as you move
+  const UNDER_X = 12150;                                   // where Rashid Minhas crosses
+  const cxw = px(UNDER_X);
+  const vpx = cxw + 6, vpy = horizon - 48;
+  const nearL = cxw - 250, nearR = cxw + 285;
   ctx.fillStyle = dark ? '#22222a' : '#514d57';
   ctx.beginPath();
   ctx.moveTo(nearL, H); ctx.lineTo(vpx - 14, vpy); ctx.lineTo(vpx + 14, vpy); ctx.lineTo(nearR, H);
@@ -874,8 +963,9 @@ function drawUnderpass(dark) {
     ctx.fillStyle = '#222'; ctx.fillRect(cxp + 1, cyp + ch - 2, cw - 2, 2);
   }
   ctx.restore();
-  // support pillars from the deck soffit down to the underpass ground
+  // support pillars from the deck soffit down (none in the carriageway itself)
   for (let wx = Math.ceil((RAMP_X0 + 10) / 220) * 220; wx < LEN; wx += 220) {
+    if (Math.abs(wx - 12150) < 140) continue;               // keep the crossing clear
     const sx = wx - cam.x; if (sx < x0 - 30 || sx > W + 30) continue;
     const top = groundYAt(wx) + 40;
     ctx.fillStyle = dark ? '#4a4640' : '#7d7972';
@@ -884,6 +974,15 @@ function drawUnderpass(dark) {
     ctx.fillRect(sx - 9, top, 4, horizon - top + 4);        // shade
     ctx.fillStyle = dark ? '#534f48' : '#8c887f';
     ctx.fillRect(sx - 12, horizon, 24, 7);                  // footing
+  }
+  // road-name board on the bridge fascia, right above the crossing
+  const bsx = px(12150), bsy = groundYAt(12150) + 44;
+  if (bsx > x0 - 200 && bsx < W + 200) {
+    ctx.fillStyle = '#0b6e3a'; ctx.fillRect(bsx - 96, bsy, 192, 22);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(bsx - 96, bsy, 192, 22);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('RASHID MINHAS ROAD', bsx, bsy + 15);
+    ctx.textAlign = 'left';
   }
 }
 
@@ -1139,6 +1238,13 @@ function steam(x, y) {
 
 function drawVehicle(v) {
   const x = px(v.x), y = groundYAt(v.x + v.w / 2) - v.h;
+  // tilt the whole vehicle to match the road slope (bridge ramp)
+  const slopeAng = Math.atan2(groundYAt(v.x + v.w) - groundYAt(v.x), v.w);
+  ctx.save();
+  if (slopeAng) {
+    const pivX = x + v.w / 2, pivY = groundYAt(v.x + v.w / 2);
+    ctx.translate(pivX, pivY); ctx.rotate(slopeAng); ctx.translate(-pivX, -pivY);
+  }
   if (v.kind === 'rickshaw' && sprites.rickshaw) {
     // real photo sprite — scale by opaque content, land its wheels on the road
     const spr = sprites.rickshaw, c = spr.content || { x: 0, y: 0, w: spr.width, h: spr.height };
@@ -1336,10 +1442,11 @@ function drawVehicle(v) {
       ctx.fillStyle = '#222'; ctx.fillRect(x, hy - 1, 5, 2);
     }
   }
+  ctx.restore();
 }
 
 function drawPlayer() {
-  if (state === 'gameover') return;
+  if (state === 'gameover' || state === 'ride') return;   // on the bike during the ride
   const x = px(player.x), y = Math.round(player.y);
   const f = player.face;                                  // 1 right, -1 left
   const t = performance.now();
@@ -1449,13 +1556,14 @@ function drawDecor(d, dark) {
     ctx.fillText('UNIVERSITY OF KARACHI', x + 91, GROUND_Y - 152);
     ctx.fillStyle = '#3b6b48'; ctx.fillText('MASKAN GATE', x + 91, GROUND_Y - 130);
   } else if (d.kind === 'lamp') {
-    ctx.fillStyle = '#444c55'; ctx.fillRect(x, GROUND_Y - 130, 6, 130);
-    ctx.fillRect(x, GROUND_Y - 130, 26, 5);
+    const lgy = groundYAt(d.x);
+    ctx.fillStyle = '#444c55'; ctx.fillRect(x, lgy - 130, 6, 130);
+    ctx.fillRect(x, lgy - 130, 26, 5);
     const off = isDark() || isFlicker();
     const col = d.warm ? '#ffcf87' : '#eaf4ff';                 // warm after Disco, white before
     ctx.fillStyle = off ? '#333' : col;
-    ctx.fillRect(x + 22, GROUND_Y - 128, 10, 8);
-    if (!off) { ctx.globalAlpha = 0.16; ctx.fillStyle = col; circle(x + 27, GROUND_Y - 122, 17); ctx.globalAlpha = 1; }
+    ctx.fillRect(x + 22, lgy - 128, 10, 8);
+    if (!off) { ctx.globalAlpha = 0.16; ctx.fillStyle = col; circle(x + 27, lgy - 122, 17); ctx.globalAlpha = 1; }
   } else if (d.kind === 'kepole') {
     ctx.fillStyle = '#5d4037'; ctx.fillRect(x, GROUND_Y - 160, 8, 160);
     ctx.fillRect(x - 22, GROUND_Y - 152, 52, 4);
@@ -1545,6 +1653,13 @@ function drawDecor(d, dark) {
     }
     for (let j = 0; j < 4; j++) {
       ctx.beginPath(); ctx.moveTo(x, GROUND_Y - j * 60 - 30); ctx.lineTo(x + 210, GROUND_Y - j * 60 - 30); ctx.stroke();
+    }
+  } else if (d.kind === 'bykea') {
+    if (state !== 'ride') {
+      const bgy = groundYAt(d.x);
+      drawWaitingBike(x, bgy, false, false);
+      if (typeof player !== 'undefined' && player && state === 'play' && Math.abs(player.x - d.x) < 480)
+        speechBubble(x + 22, bgy - 122, 'your bykea is waiting');
     }
   } else if (d.kind === 'ferris') {
     // Aladin Park wheel, far background
@@ -1796,9 +1911,10 @@ function drawDecor(d, dark) {
     for (let i = 0; i < 5; i++) { ctx.fillStyle = '#e84393'; circle(x + 3 + i * 3, GROUND_Y - 28 - (i % 2) * 3, 3); }
     speechBubble(x, GROUND_Y - 80, 'flower lelein?');
   } else if (d.kind === 'pedestrian') {
-    drawPedestrian(x, GROUND_Y, d.tint, performance.now() / 150 + d.base, false, d.type);
+    const pgy = groundYAt(d.x);
+    drawPedestrian(x, pgy, d.tint, performance.now() / 150 + d.base, false, d.type);
     if (d.smoker) {
-      const mx = x + 6, my = GROUND_Y - 36;
+      const mx = x + 6, my = pgy - 36;
       ctx.fillStyle = '#fff'; ctx.fillRect(mx, my, 5, 2);
       ctx.fillStyle = '#ff5e3a'; ctx.fillRect(mx + 5, my, 2, 2);
       if (Math.floor(performance.now() / 400) % 2 === 0) {
@@ -1808,7 +1924,7 @@ function drawDecor(d, dark) {
       }
     }
     if (d.greet && typeof player !== 'undefined' && player && Math.abs(player.x - d.x) < 140)
-      speechBubble(x, GROUND_Y - 80, 'salam bhai kese ho');
+      speechBubble(x, pgy - 80, 'salam bhai kese ho');
   } else if (d.kind === 'finish') {
     const gy = groundYAt(d.x);
     ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, gy - 170, 10, 170);
@@ -1927,6 +2043,106 @@ function drawSkylineTitle() {
   for (let i = 0; i < W; i += 80) ctx.fillRect(i, H - 32, 40, 5);
 }
 
+function drawWaitingBike(sx, gy, withPassenger, smoking) {
+  // Bykea bike + rider, facing right
+  wheel(sx, gy - 8, 9); wheel(sx + 46, gy - 8, 9);
+  ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(sx, gy - 8); ctx.lineTo(sx + 20, gy - 24); ctx.lineTo(sx + 46, gy - 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx + 46, gy - 8); ctx.lineTo(sx + 52, gy - 26); ctx.stroke();
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(sx + 49, gy - 28, 9, 3);              // bars
+  ctx.fillRect(sx + 12, gy - 27, 24, 4);                                         // long seat
+  // rider in Bykea green
+  ctx.fillStyle = '#0aa54f'; ctx.fillRect(sx + 28, gy - 44, 12, 18);
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 30, gy - 53, 9, 9);
+  ctx.fillStyle = '#0e7e3e'; ctx.fillRect(sx + 29, gy - 56, 11, 4);              // helmet
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 40, gy - 40, 9, 3);               // arm to bars
+  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(sx + 30, gy - 27, 5, 13);              // leg
+  if (withPassenger) {
+    // our hero riding pillion, backpack and all
+    ctx.fillStyle = '#eef2f7'; ctx.fillRect(sx + 13, gy - 42, 12, 16);
+    ctx.fillStyle = '#8e2433'; ctx.fillRect(sx + 7, gy - 41, 6, 13);             // backpack
+    ctx.fillStyle = '#c8a06f'; ctx.fillRect(sx + 15, gy - 51, 9, 9);
+    ctx.fillStyle = '#1b1e24'; ctx.fillRect(sx + 14, gy - 53, 11, 4);            // hair
+    ctx.fillStyle = '#2c3a92'; ctx.fillRect(sx + 16, gy - 27, 5, 12);            // jeans
+  }
+  if (smoking) {                                                                   // phattay exhaust
+    ctx.globalAlpha = 0.5; ctx.fillStyle = '#aab';
+    circle(sx - 8 - Math.random() * 8, gy - 12, 3 + Math.random() * 3);
+    circle(sx - 16 - Math.random() * 8, gy - 14, 2 + Math.random() * 3);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawRideScene() {
+  drawWaitingBike(px(bikeX), groundYAt(bikeX), true, rideT > 55);
+  if (rideT <= 55) {
+    ctx.fillStyle = 'rgba(20,20,30,.7)'; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd32a';
+    ctx.fillText('GULSHAN BRIDGE PAHUNCH GAYE!', W / 2, 110);
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawCredits() {
+  // ethereal night-sky backdrop
+  const g2 = ctx.createLinearGradient(0, 0, 0, H);
+  g2.addColorStop(0, '#10122b'); g2.addColorStop(1, '#2b1f3d');
+  ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+  const t = performance.now();
+  for (let i = 0; i < 26; i++) {                              // drifting stars
+    const sy = (i * 97) % H, sx2 = ((i * 211) + t * 0.008 * (10 + i % 7)) % W;
+    ctx.globalAlpha = 0.25 + 0.5 * Math.abs(Math.sin(t / 1200 + i));
+    ctx.fillStyle = '#cfd8ff'; ctx.fillRect(sx2, sy * 0.7, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+  // rolling credits
+  const secs = ((tEnd - tStart) / 1000).toFixed(1);
+  const lines = [
+    ['USMANI ROAD RUN', 'title'],
+    ['Maskan Chowrangi → Gulshan Bridge', 'sub'],
+    ['', ''],
+    ['— RUN STATS —', 'head'],
+    ['Time taken: ' + secs + 's', ''],
+    ['Rupees picked up: ' + rupeesCollected, ''],
+    ['Chai paani to police: ' + policeTollDone + ' Rs', ''],
+    ['Rupees left in pocket: ' + rupees, ''],
+    ['', ''],
+    ['— MADE BY ABU MUSA —', 'head'],
+    ['on Claude Code', ''],
+    ['when he was testing what it could do', ''],
+    ['', ''],
+    ['"I can add random things', 'it'],
+    ['if you tell me on WhatsApp"', 'it'],
+    ['', ''],
+    ['Shukriya for playing', 'head'],
+  ];
+  const total = lines.length * 34;
+  const yStart = Math.max(H / 2 - total / 2, H - creditsT * 0.55);
+  ctx.textAlign = 'center';
+  for (let i = 0; i < lines.length; i++) {
+    const ly = yStart + i * 34;
+    if (ly < -20 || ly > H + 20) continue;
+    const st = lines[i][1];
+    if (st === 'title') { ctx.font = 'bold 34px monospace'; ctx.fillStyle = '#ffd32a'; }
+    else if (st === 'head') { ctx.font = 'bold 20px monospace'; ctx.fillStyle = '#7fe3a8'; }
+    else if (st === 'sub') { ctx.font = '16px monospace'; ctx.fillStyle = '#aab4d4'; }
+    else if (st === 'it') { ctx.font = 'italic 16px monospace'; ctx.fillStyle = '#d9c8f2'; }
+    else { ctx.font = '17px monospace'; ctx.fillStyle = '#e8ecf4'; }
+    ctx.fillText(lines[i][0], W / 2, ly);
+  }
+  // the ride home loops along the bottom
+  const bx2 = ((creditsT * 2.2) % (W + 260)) - 130;
+  ctx.fillStyle = '#1a1530'; ctx.fillRect(0, H - 34, W, 34);
+  ctx.fillStyle = '#3c3654'; ctx.fillRect(0, H - 34, W, 3);
+  drawWaitingBike(bx2, H - 8, true, true);
+  // restart hint
+  if (Math.floor(t / 600) % 2 === 0) {
+    ctx.font = 'bold 15px monospace'; ctx.fillStyle = '#ffd32a';
+    ctx.fillText('press R  /  tap to restart', W / 2, H - 48);
+  }
+  ctx.textAlign = 'left';
+}
+
 function drawGameOver() {
   ctx.fillStyle = 'rgba(10,8,14,.78)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
@@ -1964,6 +2180,7 @@ function bindTouchBtn(id, code) {
     if (code === 'ArrowLeft') recordCheat('L');
     if (code === 'ArrowRight') recordCheat('R');
     if (code === 'Space' && (state === 'title' || state === 'gameover' || state === 'win')) startGame();
+    if (code === 'Space' && state === 'credits') state = 'title';
   };
   const release = e => { e.preventDefault(); keys[code] = false; };
   el.addEventListener('pointerdown', press);
@@ -1979,6 +2196,7 @@ bindTouchBtn('btnJ', 'Space');
 cv.addEventListener('pointerdown', e => {
   initAudio();
   if (state === 'title' || state === 'gameover' || state === 'win') startGame();
+  else if (state === 'credits') state = 'title';
 });
 
 // ---------- main loop (fixed timestep) ----------
