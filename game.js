@@ -651,9 +651,11 @@ function step() {
   }
   if (player.y > H + 60) { respawn(); return; }
 
-  // vehicles
+  // vehicles — stop spawning oncoming traffic once near the police at the top of the bridge
+  const NO_TRAFFIC_X = 12150;
   spawnT--;
-  if (spawnT <= 0) { spawnVehicle(); spawnT = ZONE_RATE[zoneAt(player.x)] * (0.7 + Math.random() * 0.6); }
+  if (spawnT <= 0 && player.x < NO_TRAFFIC_X) { spawnVehicle(); spawnT = ZONE_RATE[zoneAt(player.x)] * (0.7 + Math.random() * 0.6); }
+  else if (spawnT <= 0) spawnT = 120;
   for (let i = vehicles.length - 1; i >= 0; i--) {
     const v = vehicles[i];
     v.x += v.vx;
