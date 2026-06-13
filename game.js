@@ -508,6 +508,8 @@ let state = 'title';   // title | play | gameover | win
 let titleStart = performance.now();  // drives day/night cycle on title screen
 let paused = false;
 let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, shedDone, toast, deathX;
+let lastGroundX = 60;   // last x where player stood on solid ground (for easy-mode pit respawn)
+let toastPending = null; // { text, t } — shown after current toast expires
 let iceCount = 0, lastIceX = -99999;
 let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
 let easyMode = false;                 // toggled on title screen — sets godMode on game start
@@ -603,10 +605,20 @@ function damage(knockDir) {
   if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); }
 }
 function respawn() {
+  sfx.fall();
+  if (godMode) {
+    // easy mode: reappear just before the pit, no heart loss
+    const safeX = lastGroundX - 6;
+    player.x = safeX; player.y = groundYAt(safeX) - player.h;
+    player.vx = 0; player.vy = 0; player.onGround = true;
+    iframes = 120;
+    toast = { text: 'OOPS! FELL IN THE POTHOLE!', t: 160 };
+    toastPending = { text: "THANK GOD I'M PLAYING ON EASY MODE!", t: 160 };
+    return;
+  }
   let cp = CHECKPOINTS[0];
   for (const c of CHECKPOINTS) if (c < player.x - 20) cp = c;
-  if (!godMode) hearts--;
-  sfx.fall();
+  hearts--;
   if (hearts <= 0) { state = 'gameover'; tEnd = performance.now(); return; }
   player.x = cp; player.y = groundYAt(cp) - player.h; player.vx = 0; player.vy = 0;
   iframes = 100;
@@ -662,7 +674,7 @@ function step() {
   // ground (with trenches and ramp)
   const gy = groundYAt(player.x + player.w / 2);
   if (!overTrench(player.x + player.w / 2)) {
-    if (player.y + player.h >= gy) { player.y = gy - player.h; player.vy = 0; player.onGround = true; }
+    if (player.y + player.h >= gy) { player.y = gy - player.h; player.vy = 0; player.onGround = true; lastGroundX = player.x; }
   }
   if (player.y > H + 60) { respawn(); return; }
 
@@ -764,6 +776,7 @@ function step() {
   const z = zoneAt(player.x), zPrev = zoneAt(player.x - player.vx);
   if (z !== zPrev && player.vx > 0) toast = { text: ZONES[z].name.toUpperCase(), t: 140 };
   if (toast.t > 0) toast.t--;
+  else if (toastPending) { toast = toastPending; toastPending = null; }
 
   // camera
   cam.x = Math.max(0, Math.min(LEN - W, player.x - 330));
@@ -2275,8 +2288,10 @@ function drawPepsiFridge(cx, gy) {
   ctx.fillStyle = '#a0a8b8'; ctx.fillRect(cx - 2, gy - 32, 4, 2); ctx.fillRect(cx - 2, gy - 14, 4, 2);
   ctx.fillStyle = '#0047b3'; ctx.fillRect(cx - 7, gy - 44, 14, 4);    // medium blue logo band
   ctx.fillStyle = '#003087'; ctx.fillRect(cx - 7, gy - 40, 14, 2);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 5px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('PEPSI', cx, gy - 51); ctx.fillText('COLA', cx, gy - 44);
+  ctx.fillStyle = '#001a5e'; ctx.font = 'bold 6px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('PEPSI', cx, gy - 39);  // sits on the light-blue band for contrast
+  ctx.font = 'bold 5px monospace';
+  ctx.fillText('COLA', cx, gy - 32);
   ctx.textAlign = 'left';
 }
 function drawBeggar(cx, gy) {
