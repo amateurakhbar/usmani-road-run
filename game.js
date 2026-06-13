@@ -129,7 +129,7 @@ addEventListener('keydown', e => {
   if ((e.code === 'KeyR' || e.code === 'Enter') && state === 'credits') { state = 'title'; titleStart = performance.now(); }
   if (e.code === 'KeyP' && state === 'play') paused = !paused;
   if (e.code === 'KeyM') musicOn = !musicOn;
-  if (e.code === 'KeyE' && state === 'title') easyMode = !easyMode;
+  if (e.code === 'KeyE' && (state === 'title' || state === 'gameover')) easyMode = !easyMode;
   if (!e.repeat && (e.code === 'ArrowLeft' || e.code === 'KeyA')) recordCheat('L');
   if (!e.repeat && (e.code === 'ArrowRight' || e.code === 'KeyD')) recordCheat('R');
 });
@@ -181,7 +181,7 @@ const sfx = {
 // user-supplied audio tracks (in assets/) — refs assigned immediately (no fragile gating)
 const bgMusic = new Audio('assets/music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.5; bgMusic.preload = 'auto';
 const endMusic = new Audio('assets/musicend.mp3'); endMusic.loop = true; endMusic.volume = 0.36; endMusic.preload = 'auto';
-const meowAud = new Audio('assets/meow.mp3'); meowAud.volume = 1.0; meowAud.preload = 'auto';
+const meowAud = new Audio('assets/meow.mp3'); meowAud.volume = 0.4; meowAud.preload = 'auto';
 let endSeeked = false;
 // once metadata is ready, jump musicend.mp3 to 0:48 (and keep it there each loop)
 endMusic.addEventListener('loadedmetadata', () => { try { endMusic.currentTime = 48; endSeeked = true; } catch (e) {} });
@@ -403,6 +403,7 @@ function buildLevel() {
   // Disco Bakery — the icon
   addBldg(6900, 280, 280, 'DISCO BAKERY', '#1c1c22', '#101015', { sign: '#ffd32a', signText: '#1c1c22', awning: '#ffd32a' });
   decors.push({ kind: 'billboard', x: 6900, lines: ['IGLOO', 'ICE CREAM', 'thanda matlab...'], bg: '#e60026', fg: '#ffffff' });
+  addBldg(7155, 85, 110, 'DOODH DAHI', '#f8f8f8', '#e8e8e8', { signText: '#1a5276', awning: '#85c1e9' });
   decors.push({ kind: 'signal', x: 7205 });
   decors.push({ kind: 'busstop', x: 7260 });
   platforms.push({ x: 7250, y: GROUND_Y - 100, w: 130, h: 10, shelter: true });
@@ -756,7 +757,7 @@ function step() {
   if (!shedDone) {
     shedT++;
     if (shedT === 1320) toast = { text: 'LOAD SHEDDING AANE WALI HAI...', t: 110 };
-    if (shedT >= 1800) { shedDone = true; shedT = 0; }
+    if (shedT >= 1620) { shedDone = true; shedT = 0; }  // dark period halved (180 ticks instead of 360)
   }
 
   // zone toast
@@ -2489,19 +2490,56 @@ function drawServer(cx, gy, t, idle) {
 }
 function drawOwner(cx, gy, t) {
   const panSide = Math.sin(t / 700) > 0 ? 1 : -1;
-  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 5, gy - 16, 5, 16); ctx.fillRect(cx + 1, gy - 16, 5, 16);
-  ctx.fillStyle = '#2b2b2b'; ctx.fillRect(cx - 6, gy - 2, 6, 2); ctx.fillRect(cx, gy - 2, 6, 2);
-  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 6, gy - 31, 13, 15);
-  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(cx - 6, gy - 31, 2, 15);
-  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 40, 8, 9);
-  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 4, gy - 44, 8, 5);       // kufi topi
-  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 3, gy - 44, 7, 2);
-  ctx.fillStyle = '#2e1a0a'; ctx.fillRect(cx - 3, gy - 36, 7, 5);       // beard
-  ctx.fillRect(cx - 2, gy - 32, 5, 3); ctx.fillRect(cx - 1, gy - 30, 3, 2);
-  ctx.fillStyle = '#3a2010'; ctx.fillRect(cx - 3, gy - 38, 7, 2);       // mustache
-  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 3, gy - 37, 2, 2); ctx.fillRect(cx + 1, gy - 37, 2, 2);
-  ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 2, gy - 37, 1, 1); ctx.fillRect(cx + 2, gy - 37, 1, 1);
-  ctx.fillStyle = 'rgba(200,80,50,0.6)'; circle(cx + panSide * 3, gy - 35, 2.5);  // pan bulge
+  const sw = Math.round(Math.sin(t / 480) * 2);   // stride ±2px, legs alternate
+
+  // legs (19px tall — 20% taller than original 16px)
+  ctx.fillStyle = '#dcdcd2';
+  ctx.fillRect(cx - 6 + sw, gy - 19, 6, 19);      // left leg
+  ctx.fillRect(cx + 1 - sw, gy - 19, 6, 19);      // right leg
+  // shoes follow legs
+  ctx.fillStyle = '#2b2b2b';
+  ctx.fillRect(cx - 7 + sw, gy - 2, 7, 2);        // left shoe
+  ctx.fillRect(cx - 1 - sw, gy - 2, 7, 2);        // right shoe
+
+  // kameez (18px tall, gy-37 to gy-19)
+  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 7, gy - 37, 15, 18);
+  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(cx - 7, gy - 37, 2, 18);
+
+  // head (11px tall, gy-48 to gy-37)
+  ctx.fillStyle = '#c8a06f'; ctx.fillRect(cx - 4, gy - 48, 9, 11);
+
+  // kufi topi (6px tall, gy-54 to gy-48)
+  ctx.fillStyle = '#f0f0f0'; ctx.fillRect(cx - 4, gy - 54, 9, 6);
+  ctx.fillStyle = '#dcdcd2'; ctx.fillRect(cx - 3, gy - 54, 8, 2);
+
+  // beard
+  ctx.fillStyle = '#2e1a0a';
+  ctx.fillRect(cx - 3, gy - 43, 8, 6);            // main beard
+  ctx.fillRect(cx - 2, gy - 38, 5, 2);            // chin
+  ctx.fillRect(cx - 1, gy - 37, 3, 1);
+
+  // mustache
+  ctx.fillStyle = '#3a2010'; ctx.fillRect(cx - 3, gy - 46, 8, 2);
+
+  // eyes
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 3, gy - 45, 2, 2); ctx.fillRect(cx + 1, gy - 45, 2, 2);
+  ctx.fillStyle = '#15151a'; ctx.fillRect(cx - 2, gy - 45, 1, 2); ctx.fillRect(cx + 2, gy - 45, 1, 2);
+
+  // facial expression: cycles neutral → smile → neutral → frown → neutral every 2.8s
+  const expr = Math.floor(t / 2800) % 5;
+  ctx.fillStyle = '#6e2c1a';
+  if (expr === 1) {                                // smile — corners up
+    ctx.fillRect(cx - 1, gy - 41, 4, 1);
+    ctx.fillRect(cx - 2, gy - 42, 1, 1); ctx.fillRect(cx + 3, gy - 42, 1, 1);
+  } else if (expr === 3) {                         // frown — corners down
+    ctx.fillRect(cx - 1, gy - 42, 4, 1);
+    ctx.fillRect(cx - 2, gy - 41, 1, 1); ctx.fillRect(cx + 3, gy - 41, 1, 1);
+  } else {                                         // neutral straight line
+    ctx.fillRect(cx - 1, gy - 41, 4, 1);
+  }
+
+  // pan bulge on cheek
+  ctx.fillStyle = 'rgba(200,80,50,0.6)'; circle(cx + panSide * 3, gy - 43, 2.5);
 }
 function drawStandingFan(cx, gy, t) {
   // compact fan — head at face level (~gy-44)
@@ -2898,10 +2936,12 @@ function drawTitle() {
   ctx.font = 'bold 14px monospace'; ctx.fillStyle = titleNF > 0.5 ? '#aaa8b8' : '#2c3e50';
   ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 250);
   // easy mode toggle
-  const emCol = easyMode ? '#2ecc71' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
-  ctx.fillStyle = emCol;
   ctx.font = 'bold 13px monospace';
-  ctx.fillText((easyMode ? '[✓] EASY MODE  ON' : '[ ] EASY MODE  OFF') + '  — can\'t die  (press E)', W / 2, 275);
+  ctx.fillStyle = easyMode ? '#2ecc71' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
+  ctx.fillText((easyMode ? '[✓] EASY MODE  ON' : '[ ] EASY MODE  OFF') + '  — can\'t die  (press E)', W / 2, 274);
+  // music toggle
+  ctx.fillStyle = musicOn ? '#3498db' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
+  ctx.fillText((musicOn ? '[♪] MUSIC  ON' : '[✕] MUSIC  OFF') + '  (press M)', W / 2, 292);
   ctx.textAlign = 'left';
 }
 
@@ -3100,12 +3140,19 @@ function drawGameOver() {
   ctx.fillStyle = 'rgba(10,8,14,.78)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
   ctx.font = 'bold 46px monospace'; ctx.fillStyle = '#e74c3c';
-  ctx.fillText('GAME OVER', W / 2, 220);
+  ctx.fillText('GAME OVER', W / 2, 210);
   ctx.font = '20px monospace'; ctx.fillStyle = '#ecf0f1';
-  ctx.fillText('Gulshan bridge to door tha...', W / 2, 270);
-  ctx.fillText('Rupees collected: ' + rupees, W / 2, 305);
+  ctx.fillText('Gulshan bridge to door tha...', W / 2, 258);
+  ctx.fillText('Rupees collected: ' + rupees, W / 2, 290);
   ctx.font = 'bold 22px monospace'; ctx.fillStyle = '#ffd32a';
-  ctx.fillText('PRESS R TO TRY AGAIN', W / 2, 370);
+  ctx.fillText('PRESS R TO TRY AGAIN', W / 2, 348);
+  // easy mode toggle
+  ctx.font = 'bold 13px monospace';
+  ctx.fillStyle = easyMode ? '#2ecc71' : '#7f8c8d';
+  ctx.fillText((easyMode ? '[✓] EASY MODE  ON' : '[ ] EASY MODE  OFF') + '  — can\'t die  (press E)', W / 2, 383);
+  // music toggle
+  ctx.fillStyle = musicOn ? '#3498db' : '#7f8c8d';
+  ctx.fillText((musicOn ? '[♪] MUSIC  ON' : '[✕] MUSIC  OFF') + '  (press M)', W / 2, 403);
   ctx.textAlign = 'left';
 }
 function drawWin() {
@@ -3148,13 +3195,17 @@ bindTouchBtn('btnJ', 'Space');
 // tap anywhere on the canvas to start / restart on touch devices
 cv.addEventListener('pointerdown', e => {
   initAudio();
+  const rect = cv.getBoundingClientRect();
+  const cy2 = (e.clientY - rect.top) / rect.height * cv.height;
   if (state === 'title') {
-    // check if tap lands on the easy mode toggle (y≈275 in canvas coords)
-    const rect = cv.getBoundingClientRect();
-    const cy2 = (e.clientY - rect.top) / rect.height * cv.height;
-    if (cy2 > 263 && cy2 < 288) { easyMode = !easyMode; return; }
+    if (cy2 > 262 && cy2 < 285) { easyMode = !easyMode; return; }          // easy mode row
+    if (cy2 > 280 && cy2 < 303) { musicOn = !musicOn; updateMusicTracks(); return; } // music row
     startGame();
-  } else if (state === 'gameover' || state === 'win') startGame();
+  } else if (state === 'gameover') {
+    if (cy2 > 371 && cy2 < 394) { easyMode = !easyMode; return; }           // easy mode row
+    if (cy2 > 391 && cy2 < 414) { musicOn = !musicOn; updateMusicTracks(); return; } // music row
+    startGame();
+  } else if (state === 'win') startGame();
   else if (state === 'credits') { state = 'title'; titleStart = performance.now(); }
 });
 
