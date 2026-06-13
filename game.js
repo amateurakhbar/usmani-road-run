@@ -811,6 +811,44 @@ function lerpColor(a, b, f) {
 
 function px(x) { return Math.round(x - cam.x); }
 
+function drawPlane(sx, sy, scale, t) {
+  scale = scale || 1;
+  ctx.save(); ctx.translate(sx, sy); ctx.scale(scale, scale);
+  ctx.fillStyle = '#d6dbe4';
+  ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(14, -3); ctx.lineTo(20, 0); ctx.lineTo(14, 3); ctx.closePath(); ctx.fill(); // fuselage
+  ctx.fillStyle = '#aab2be';
+  ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(-12, -9); ctx.lineTo(-6, 0); ctx.closePath(); ctx.fill();   // wing up
+  ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(-12, 9); ctx.lineTo(-6, 0); ctx.closePath(); ctx.fill();    // wing down
+  ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(-26, -6); ctx.lineTo(-19, 0); ctx.closePath(); ctx.fill(); // tail fin
+  // flickering nav lights: red, green, white strobe
+  const blink = Math.floor(t / 220) % 2 === 0;
+  const strobe = Math.floor(t / 130) % 4 === 0;
+  if (blink) { ctx.fillStyle = '#ff3b30'; ctx.fillRect(-13, -9, 2, 2); ctx.fillStyle = '#2ecc71'; ctx.fillRect(-13, 8, 2, 2); }
+  if (strobe) { ctx.fillStyle = '#ffffff'; ctx.fillRect(18, -1, 3, 3); }
+  ctx.restore();
+}
+// planes crossing the sky (left->right). 5:30pm one in daytime; recurring at night.
+function drawSkyPlanes(nf) {
+  const t = performance.now();
+  if (state !== 'play' && state !== 'ride') return;
+  const el = ((tEnd || performance.now()) - (tStart || performance.now())) / 1000;
+  // daytime flight ~5:30pm (around 33s in), one pass across ~18s
+  if (el > 28 && el < 46) {
+    const f = (el - 28) / 18;                                  // 0..1 across the sky
+    drawPlane(f * (W + 120) - 60, 56 + Math.sin(f * 3) * 6, 1.1, t);
+  }
+  // night flights: recurring once it's dark
+  if (nf > 0.6) {
+    for (let k = 0; k < 2; k++) {
+      const cyc = (t / 1000 + k * 9) % 16;                     // a plane every ~16s, staggered
+      if (cyc < 11) {
+        const f = cyc / 11;
+        drawPlane(f * (W + 140) - 70, 44 + k * 34 + Math.sin(f * 4 + k) * 5, 0.95, t + k * 300);
+      }
+    }
+  }
+}
+
 function draw() {
   // sky: day -> dusk -> night over the run; load shedding stays its own darkness
   const nf = nightFactor();
@@ -827,6 +865,19 @@ function draw() {
     ctx.fillStyle = 'rgba(220,228,255,' + (0.7 * (nf - 0.6) / 0.4).toFixed(2) + ')';
     for (let i = 0; i < 24; i++) ctx.fillRect((i * 167 + 23) % W, (i * 59) % 180 + 8, 2, 2);
   }
+  // setting sun: high & bright at 4:30, sinks behind the skyline and fades out by 7:30
+  if (!shed && nf < 0.98 && (state === 'play' || state === 'ride')) {
+    const sunX = W * 0.74;
+    const sunY = 70 + nf * (GROUND_Y - 30);                    // descends past the rooftops
+    const sunR = 26;
+    const a = Math.max(0, 1 - nf / 0.95);
+    const warm = lerpColor('#ffd86b', '#ff6a3d', nf);          // yellow -> deep orange
+    ctx.globalAlpha = 0.20 * a; ctx.fillStyle = warm; circle(sunX, sunY, sunR + 18);
+    ctx.globalAlpha = a; ctx.fillStyle = warm; circle(sunX, sunY, sunR);
+    ctx.globalAlpha = 1;
+  }
+  // night planes + the one 5:30pm daytime flight, crossing left -> right
+  drawSkyPlanes(nf);
 
   if (state === 'title') { drawTitle(); return; }
   if (state === 'credits') { drawCredits(); return; }
@@ -2132,7 +2183,14 @@ function drawHUD() {
   ctx.fillText('x ' + rupees, 178, 29);
   // timer
   const el = ((tEnd || performance.now()) - tStart) / 1000;
-  ctx.fillText(el.toFixed(1) + 's', W - 110, 29);
+  ctx.font = 'bold 18px monospace'; ctx.fillStyle = '#fff';
+  ctx.fillText(el.toFixed(1) + 's', W - 92, 18);
+  // clock: 4:30 PM at start -> 7:30 PM by 100s
+  const mins = 16 * 60 + 30 + nightFactor() * 180;             // minutes since midnight
+  let hh = Math.floor(mins / 60) % 24, mm = Math.floor(mins % 60);
+  const ampm = hh >= 12 ? 'PM' : 'AM'; let h12 = hh % 12; if (h12 === 0) h12 = 12;
+  ctx.fillStyle = '#ffd98a'; ctx.font = 'bold 15px monospace';
+  ctx.fillText(h12 + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ampm, W - 92, 37);
   // progress bar  Maskan → Gulshan
   const bx = 300, bw = W - 480;
   ctx.fillStyle = '#3a3a46'; ctx.fillRect(bx, 16, bw, 12);
@@ -2294,6 +2352,15 @@ function drawCredits() {
   ctx.fillStyle = '#f4ecc2'; circle(mx, my, mr);
   ctx.fillStyle = '#0c0e26';                                  // carve the crescent with the sky colour
   circle(mx + 9, my - 5, mr - 1);
+  // a plane crosses in the first ~10s, then planes recur through the credits
+  if (creditsT < 620) {
+    const f = creditsT / 620;
+    drawPlane(f * (W + 140) - 70, 70 + Math.sin(f * 3) * 6, 1.1, t);
+  }
+  for (let k = 0; k < 2; k++) {
+    const cyc = (t / 1000 + k * 10 + 5) % 18;
+    if (cyc < 12) { const f = cyc / 12; drawPlane(f * (W + 140) - 70, 38 + k * 30 + Math.sin(f * 4 + k) * 5, 0.95, t + k * 250); }
+  }
   // soft night clouds drifting behind the buildings — credits rise out from here
   for (let i = 0; i < 5; i++) {
     let cx = ((i * 230 + 60) - scroll * 0.10) % (W + 360); if (cx < -200) cx += W + 360;
