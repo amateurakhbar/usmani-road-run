@@ -126,7 +126,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true; anyKeyPressed = true; initAudio();
   if (e.code === 'Enter' && (state === 'title' || state === 'win')) startGame();
   if (e.code === 'KeyR' && (state === 'gameover' || state === 'win')) startGame();
-  if ((e.code === 'KeyR' || e.code === 'Enter') && state === 'credits') state = 'title';
+  if ((e.code === 'KeyR' || e.code === 'Enter') && state === 'credits') { state = 'title'; titleStart = performance.now(); }
   if (e.code === 'KeyP' && state === 'play') paused = !paused;
   if (e.code === 'KeyM') musicOn = !musicOn;
   if (!e.repeat && (e.code === 'ArrowLeft' || e.code === 'KeyA')) recordCheat('L');
@@ -502,6 +502,7 @@ buildLevel();
 
 // ---------- dynamic state ----------
 let state = 'title';   // title | play | gameover | win
+let titleStart = performance.now();  // drives day/night cycle on title screen
 let paused = false;
 let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, toast, deathX;
 let iceCount = 0, lastIceX = -99999;
@@ -2291,49 +2292,274 @@ function drawJannatFacade(x, baseY, w, h, dark) {
   ctx.textAlign = 'left';
 }
 
+// ─── Title screen helpers ────────────────────────────────────────────────────
+function lerpHex(c1, c2, f) {
+  const r1=c1>>16&0xff,g1=c1>>8&0xff,b1=c1&0xff;
+  const r2=c2>>16&0xff,g2=c2>>8&0xff,b2=c2&0xff;
+  return 'rgb('+(r1+(r2-r1)*f|0)+','+(g1+(g2-g1)*f|0)+','+(b1+(b2-b1)*f|0)+')';
+}
+function drawCatTitle(cx, gy, col, t) {
+  ctx.fillStyle = col;
+  ctx.fillRect(cx-7,gy-10,14,8);                     // body
+  ctx.fillRect(cx-5,gy-19,10,9);                     // head
+  ctx.beginPath(); ctx.moveTo(cx-5,gy-18); ctx.lineTo(cx-9,gy-24); ctx.lineTo(cx-1,gy-18); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx+4,gy-18); ctx.lineTo(cx+8,gy-24); ctx.lineTo(cx+2,gy-18); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#f9a8d4';
+  ctx.beginPath(); ctx.moveTo(cx-4,gy-19); ctx.lineTo(cx-7,gy-23); ctx.lineTo(cx-1,gy-19); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx+3,gy-19); ctx.lineTo(cx+6,gy-23); ctx.lineTo(cx+1,gy-19); ctx.closePath(); ctx.fill();
+  const blink = (t%4100)<120;
+  if (blink) {
+    ctx.fillStyle=col; ctx.fillRect(cx-3,gy-16,3,1); ctx.fillRect(cx+1,gy-16,3,1);
+  } else {
+    ctx.fillStyle='#4ade80'; ctx.fillRect(cx-3,gy-17,3,4); ctx.fillRect(cx+1,gy-17,3,4);
+    ctx.fillStyle='#15151a'; ctx.fillRect(cx-2,gy-16,1,3); ctx.fillRect(cx+2,gy-16,1,3);
+  }
+  ctx.fillStyle='#f9a8d4'; ctx.fillRect(cx,gy-13,1,1);
+  ctx.strokeStyle=(col==='#1a1a1a')?'#666':'#bbb'; ctx.lineWidth=0.7;
+  ctx.beginPath(); ctx.moveTo(cx-5,gy-13); ctx.lineTo(cx-10,gy-11.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-5,gy-13); ctx.lineTo(cx-10,gy-14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+4,gy-13); ctx.lineTo(cx+9,gy-11.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+4,gy-13); ctx.lineTo(cx+9,gy-14); ctx.stroke();
+  ctx.strokeStyle=col; ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.moveTo(cx+6,gy-6);
+  ctx.quadraticCurveTo(cx+16+Math.sin(t/220)*5,gy-18,cx+14+Math.sin(t/190)*4,gy-28+Math.cos(t/170)*5);
+  ctx.stroke();
+}
+function drawSeatedUpper(cx, gy, shirt, t, type) {
+  type=type||'man';
+  const bob=Math.sin(t/600)*1.5;
+  if (type==='floral') {
+    ctx.fillStyle='#f3e2ec'; ctx.fillRect(cx-5,gy-46+bob,11,16);
+    const fc=['#e84393','#27ae60','#e67e22'];
+    for (let i=0;i<4;i++){ctx.fillStyle=fc[i%3]; circle(cx-2+i*3,gy-42+bob,1.3);}
+    ctx.fillStyle='#d63384'; ctx.fillRect(cx-6,gy-47+bob,13,3);
+    ctx.fillStyle='#d63384'; ctx.fillRect(cx-5,gy-53+bob,1,5); ctx.fillRect(cx+4,gy-53+bob,1,5);
+    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-3,gy-54+bob,7,8);
+    ctx.fillStyle='#d63384'; ctx.fillRect(cx-4,gy-57+bob,9,4);
+    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-9,gy-35+bob,4,3); ctx.fillRect(cx+5,gy-35+bob,4,3);
+  } else {
+    ctx.fillStyle=shirt; ctx.fillRect(cx-5,gy-46+bob,11,16);
+    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-3,gy-54+bob,7,8);
+    ctx.fillStyle='#1e1e1e'; ctx.fillRect(cx-4,gy-56+bob,9,3);
+    ctx.fillStyle='#1e1e1e'; ctx.fillRect(cx-4,gy-53+bob,1,4); ctx.fillRect(cx+3,gy-53+bob,1,4);
+    ctx.fillStyle='#c8a06f'; ctx.fillRect(cx-9,gy-35+bob,4,3); ctx.fillRect(cx+5,gy-35+bob,4,3);
+  }
+  ctx.fillStyle='#fff'; ctx.fillRect(cx-2,gy-51+bob,2,2); ctx.fillRect(cx+1,gy-51+bob,2,2);
+  ctx.fillStyle='#15151a'; ctx.fillRect(cx-2,gy-51+bob,1,1); ctx.fillRect(cx+2,gy-51+bob,1,1);
+  ctx.fillStyle='#3a2a1a'; ctx.fillRect(cx-2,gy-53+bob,2,1); ctx.fillRect(cx+1,gy-53+bob,2,1);
+  ctx.fillStyle='#7a3b2a'; ctx.fillRect(cx,gy-48+bob,2,1);
+}
+function drawTableGroup(cx, gy, leftShirt, leftType, rightShirt, rightType, t) {
+  ctx.fillStyle='#a8814f';
+  ctx.fillRect(cx-18,gy-62,8,3); ctx.fillRect(cx-16,gy-59,2,13); ctx.fillRect(cx-13,gy-59,2,13);
+  ctx.fillRect(cx+10,gy-62,8,3); ctx.fillRect(cx+12,gy-59,2,13); ctx.fillRect(cx+15,gy-59,2,13);
+  ctx.fillStyle='#7a5c2e';
+  ctx.fillRect(cx-20,gy-28,3,28); ctx.fillRect(cx+17,gy-28,3,28);
+  drawSeatedUpper(cx-13,gy,leftShirt,t,leftType);
+  drawSeatedUpper(cx+13,gy,rightShirt,t+240,rightType);
+  ctx.fillStyle='#c9a86c'; ctx.fillRect(cx-22,gy-32,44,10);
+  ctx.fillStyle='#b87d3c'; ctx.fillRect(cx-22,gy-32,44,3);
+  ctx.fillStyle='#f0ebe0'; circle(cx-8,gy-27,5); circle(cx+8,gy-27,5);
+  ctx.fillStyle='#e29b38'; circle(cx-8,gy-27,3);
+  ctx.fillStyle='#8b3a1e'; circle(cx+8,gy-27,3);
+  ctx.fillStyle='rgba(100,160,220,0.75)'; ctx.fillRect(cx-17,gy-32,4,8); ctx.fillRect(cx+13,gy-32,4,8);
+}
+function drawTitleParkedBike(cx, gy, col) {
+  ctx.save(); ctx.translate(cx,gy); ctx.rotate(-0.07);
+  wheel(-16,-9,9); wheel(24,-9,9);
+  ctx.strokeStyle=col; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(-16,-9); ctx.lineTo(4,-24); ctx.lineTo(24,-9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4,-24); ctx.lineTo(12,-26); ctx.stroke();
+  ctx.fillStyle='#555'; ctx.fillRect(-4,-26,6,2);
+  ctx.fillStyle=col; ctx.fillRect(6,-28,18,4);
+  ctx.fillStyle='#444'; ctx.fillRect(6,-28,4,12);
+  ctx.strokeStyle='#888'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(-14,-5); ctx.lineTo(-20,4); ctx.stroke();
+  ctx.fillStyle='#aaa'; ctx.fillRect(-10,-30,6,2); ctx.fillRect(8,-30,6,2);
+  ctx.restore();
+}
+function drawTitleParkedCar(cx, gy, col) {
+  const bx=cx-34, carH=20, by=gy-carH;
+  ctx.fillStyle=col; ctx.fillRect(bx,by,68,carH);
+  ctx.fillStyle=col; ctx.fillRect(bx+12,by-16,40,16);
+  ctx.fillStyle='rgba(80,140,190,0.75)';
+  ctx.fillRect(bx+14,by-14,17,11); ctx.fillRect(bx+33,by-14,17,11);
+  ctx.fillStyle='#2a2a3a'; ctx.fillRect(bx+31,by-14,2,11);
+  wheel(bx+13,gy-1,9); wheel(bx+55,gy-1,9);
+  ctx.fillStyle='#fff9c4'; ctx.fillRect(bx,by+6,5,6);
+  ctx.fillStyle='#ff4422'; ctx.fillRect(bx+63,by+6,5,6);
+  ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx,by); ctx.lineTo(cx,gy); ctx.stroke();
+  ctx.fillStyle='#aaa'; ctx.fillRect(bx-2,by+14,5,6); ctx.fillRect(bx+65,by+14,5,6);
+  ctx.fillStyle='#fff'; ctx.fillRect(bx+22,gy-6,20,7);
+  ctx.fillStyle='#333'; ctx.font='5px monospace'; ctx.textAlign='center';
+  ctx.fillText('KHI-786',cx,gy-1); ctx.textAlign='left';
+}
+function drawTitleLamp(lx, baseY, nf) {
+  ctx.fillStyle='#4a4a5a'; ctx.fillRect(lx-2,baseY-108,5,108);
+  ctx.fillStyle='#3a3a4a'; ctx.fillRect(lx-2,baseY-108,24,4); ctx.fillRect(lx+20,baseY-108,5,16);
+  if (nf > 0.22) {
+    const la=Math.min(1,(nf-0.22)*4);
+    ctx.fillStyle='#fff8c4'; ctx.fillRect(lx+19,baseY-107,8,12);
+    ctx.globalAlpha=la*0.22;
+    const g=ctx.createRadialGradient(lx+23,baseY-101,0,lx+23,baseY-101,95);
+    g.addColorStop(0,'#fde68a'); g.addColorStop(1,'rgba(253,230,138,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(lx+23,baseY-101,95,0,7); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+
 function drawTitle() {
   const t = performance.now();
-  // warm late-afternoon sky
-  const sg = ctx.createLinearGradient(0, 0, 0, H);
-  sg.addColorStop(0, '#8ec5e8'); sg.addColorStop(1, '#f6d9a8');
-  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
-  // low sun
-  ctx.globalAlpha = 0.25; ctx.fillStyle = '#ffd86b'; circle(W * 0.2, 150, 50);
-  ctx.globalAlpha = 1; ctx.fillStyle = '#ffd86b'; circle(W * 0.2, 150, 30);
-  // back skyline
-  ctx.fillStyle = '#b9cdba';
-  for (let i = 0; i < Math.ceil(W / 120) + 1; i++) { const hh = 80 + (i * 67) % 90; ctx.fillRect(i * 120, H - 150 - hh + 40, 96, hh + 150); }
-  // scene ground
+  const titleEl = (t - titleStart) / 1000;
+  const titleNF = Math.min(1, titleEl / 70);
   const baseY = H - 56;
-  ctx.fillStyle = '#b9b1a3'; ctx.fillRect(0, baseY, W, 16);
-  ctx.fillStyle = '#555259'; ctx.fillRect(0, baseY + 16, W, H);
-  ctx.fillStyle = '#d9d090'; for (let i = 0; i < W; i += 80) ctx.fillRect(i + (Math.floor(t / 40) % 80), baseY + 40, 40, 5);
-  // Jannat BBQ building (centre-right), with the crowd out front
+
+  // sky gradient: afternoon blue → golden dusk → night
+  const sg = ctx.createLinearGradient(0, 0, 0, H);
+  if (titleNF < 0.5) {
+    const f = titleNF / 0.5;
+    sg.addColorStop(0, lerpHex(0x8ec5e8, 0xc87030, f));
+    sg.addColorStop(1, lerpHex(0xf6d9a8, 0xe05018, f));
+  } else {
+    const f = (titleNF - 0.5) / 0.5;
+    sg.addColorStop(0, lerpHex(0xc87030, 0x0c0e26, f));
+    sg.addColorStop(1, lerpHex(0xe05018, 0x241a36, f));
+  }
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+
+  // sun sinking toward left horizon
+  const sunX = W * 0.13;
+  const sunY = H * 0.18 + titleNF * H * 0.80;
+  const sunVis = Math.max(0, 1 - Math.max(0, (sunY - (baseY - 24)) / 55));
+  if (sunVis > 0) {
+    const sunHex = titleNF < 0.35 ? 0xffd86b : titleNF < 0.65 ? 0xf47020 : 0xe84020;
+    const sunStr = '#' + sunHex.toString(16).padStart(6, '0');
+    ctx.fillStyle = sunStr;
+    ctx.globalAlpha = sunVis * 0.18; circle(sunX, sunY, 72);
+    ctx.globalAlpha = sunVis * 0.09; circle(sunX, sunY, 98);
+    ctx.globalAlpha = sunVis; circle(sunX, sunY, 32);
+    ctx.globalAlpha = 1;
+  }
+
+  // stars appear at dusk
+  if (titleNF > 0.4) {
+    const sa = Math.min(1, (titleNF - 0.4) * 3);
+    for (let i = 0; i < 24; i++) {
+      ctx.globalAlpha = sa * (0.3 + 0.4 * Math.abs(Math.sin(t / 1500 + i)));
+      ctx.fillStyle = '#e8eeff';
+      ctx.fillRect(((i * 211 + 53) % (W - 60)) + 30, ((i * 97 + 13) % Math.round(H * 0.44)) + 8, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // back skyline (colour shifts at night)
+  ctx.fillStyle = titleNF > 0.55 ? '#1e2240' : '#b9cdba';
+  for (let i = 0; i < Math.ceil(W / 110) + 1; i++) {
+    const hh = 80 + (i * 67) % 90;
+    ctx.fillRect(i * 110, H - 150 - hh + 40, 90, hh + 150);
+  }
+
+  // street lamps (light up when dusk arrives)
+  drawTitleLamp(Math.round(W * 0.27), baseY, titleNF);
+  drawTitleLamp(Math.round(W * 0.80), baseY, titleNF);
+
+  // ground + road lines
+  ctx.fillStyle = titleNF > 0.5 ? '#8e8880' : '#b9b1a3';
+  ctx.fillRect(0, baseY, W, 16);
+  ctx.fillStyle = titleNF > 0.5 ? '#3a3638' : '#555259';
+  ctx.fillRect(0, baseY + 16, W, H);
+  ctx.fillStyle = '#d9d090';
+  for (let i = 0; i < W; i += 80) ctx.fillRect(i + (Math.floor(t / 40) % 80), baseY + 40, 40, 5);
+
+  // parked vehicles (left side)
+  const pvX = Math.round(W * 0.05);
+  drawTitleParkedCar(pvX + 34, baseY, '#c0392b');
+  drawTitleParkedBike(pvX + 110, baseY, '#1abc9c');
+  drawTitleParkedBike(pvX + 146, baseY, '#f39c12');
+  drawCatTitle(pvX + 180, baseY, '#888888', t + 1000);   // grey cat near bikes
+
+  // Jannat BBQ building
   const jw = 200, jx = W / 2 - jw / 2 + 70;
-  drawJannatFacade(jx, baseY, jw, 250, false);
-  // BBQ grill with smoke (in front of Jannat)
+  drawJannatFacade(jx, baseY, jw, 250, titleNF > 0.5);
+
+  // BBQ grill + smoke
   const gx = jx - 26;
   ctx.fillStyle = '#3a3a3a'; ctx.fillRect(gx, baseY - 26, 52, 14);
   ctx.fillStyle = '#1e1e1e'; ctx.fillRect(gx, baseY - 14, 52, 14);
-  ctx.fillStyle = '#ff5e3a'; for (let i = 0; i < 6; i++) ctx.fillRect(gx + 4 + i * 8, baseY - 24, 5, 4);  // coals
-  ctx.fillStyle = '#6d4c2f'; for (let i = 0; i < 5; i++) ctx.fillRect(gx + 5 + i * 9, baseY - 27, 7, 3);  // seekhs
+  ctx.fillStyle = '#ff5e3a'; for (let i = 0; i < 6; i++) ctx.fillRect(gx + 4 + i * 8, baseY - 24, 5, 4);
+  ctx.fillStyle = '#6d4c2f'; for (let i = 0; i < 5; i++) ctx.fillRect(gx + 5 + i * 9, baseY - 27, 7, 3);
   ctx.globalAlpha = 0.5; ctx.fillStyle = '#cfcfcf';
-  for (let i = 0; i < 5; i++) { const px2 = gx + 8 + i * 9, ph = (t / 18 + i * 40) % 90; circle(px2 + Math.sin((t / 300) + i) * 6, baseY - 30 - ph, 4 + ph / 28); }
+  for (let i = 0; i < 5; i++) { const ph = (t / 18 + i * 40) % 90; circle(gx + 8 + i * 9 + Math.sin(t / 300 + i) * 6, baseY - 30 - ph, 4 + ph / 28); }
   ctx.globalAlpha = 1;
-  drawPedestrian(gx + 26, baseY, '#9b3d12', 0, true, 'man');     // the cook
-  // crowd near Jannat (men + floral women, with faces)
-  const crowd = [['man', '#34495e'], ['floral', '#e84393'], ['man', '#16607a'], ['floral', '#8e44ad'], ['man', '#5b3a29'], ['man', '#7f8c8d'], ['floral', '#c0392b']];
-  for (let i = 0; i < crowd.length; i++) {
-    const cx = jx - 120 + i * 26 + Math.sin(t / 600 + i) * 2;
-    drawPedestrian(cx, baseY, crowd[i][1], t / 150 + i * 9, false, crowd[i][0]);
-  }
-  // plastic chairs + a diner
-  ctx.fillStyle = '#f4f6f6'; ctx.fillRect(jx - 150, baseY - 14, 8, 4); ctx.fillRect(jx - 150, baseY - 11, 3, 11);
-  drawPedestrian(jx - 146, baseY, '#2980b9', 0, true, 'man');
-  // a cat
-  ctx.fillStyle = '#b58a5a'; ctx.fillRect(jx + 150, baseY - 9, 14, 5); ctx.fillRect(jx + 162, baseY - 13, 5, 5); ctx.fillRect(jx + 147, baseY - 14, 3, 8);
+  drawPedestrian(gx + 26, baseY, '#9b3d12', 0, true, 'man');   // cook
+  drawCatTitle(gx + 58, baseY, '#1a1a1a', t + 500);            // black cat near grill
 
-  // --- title text ---
+  // tables with eating people (family + gents area)
+  const tableX0 = jx - 210;
+  ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = titleNF > 0.5 ? '#ffd86b' : '#2c3e50';
+  ctx.fillText('FAMILY AREA', tableX0 + 22, baseY - 48);
+  ctx.fillText('GENTS AREA',  tableX0 + 105, baseY - 48);
+  ctx.textAlign = 'left';
+  drawTableGroup(tableX0,       baseY, '#16607a', 'man', '#e84393', 'floral', t);
+  drawTableGroup(tableX0 + 52,  baseY, '#2ecc71', 'man', '#c0392b', 'man',    t + 80);
+  drawTableGroup(tableX0 + 104, baseY, '#8e44ad', 'man', '#e67e22', 'floral', t + 160);
+  drawCatTitle(tableX0 + 136, baseY, '#b58a5a', t);            // tabby near tables
+
+  // main crowd near Jannat (slight sway)
+  const crowd = [['man','#34495e'],['floral','#e84393'],['man','#16607a'],['floral','#8e44ad'],['man','#5b3a29'],['man','#7f8c8d'],['floral','#c0392b']];
+  for (let i = 0; i < crowd.length; i++) {
+    const ccx = jx - 120 + i * 26 + Math.sin(t / 600 + i) * 2;
+    drawPedestrian(ccx, baseY, crowd[i][1], t / 150 + i * 9, false, crowd[i][0]);
+  }
+
+  // extra walkers drifting across the scene
+  const extraW = [
+    { base:0.03, spd:0.80, col:'#e67e22', type:'man',    idx:0 },
+    { base:0.09, spd:0.65, col:'#9b59b6', type:'floral', idx:1 },
+    { base:0.15, spd:0.90, col:'#1abc9c', type:'man',    idx:2 },
+    { base:0.20, spd:0.75, col:'#e84393', type:'floral', idx:3 },
+    { base:0.67, spd:0.70, col:'#2980b9', type:'man',    idx:4 },
+    { base:0.73, spd:1.00, col:'#c0392b', type:'man',    idx:5 },
+    { base:0.79, spd:0.85, col:'#27ae60', type:'floral', idx:6 },
+    { base:0.86, spd:0.65, col:'#f39c12', type:'man',    idx:7 },
+  ];
+  for (const w of extraW) {
+    const wx = ((w.base * W + t / 50 * w.spd) % (W + 80)) - 40;
+    if (wx < -30 || wx > W + 10) continue;
+    drawPedestrian(wx, baseY, w.col, t * w.spd / 150 + w.idx * 8, false, w.type);
+  }
+
+  // cream cat far right
+  drawCatTitle(Math.round(W * 0.87), baseY, '#f5f5dc', t + 2000);
+
+  // speech bubbles (Karachi chatter, cycling phrases)
+  const chatter = [
+    { x: W * 0.10, y: baseY - 62, text: 'Yaar chai piyo!' },
+    { x: jx + 30,  y: baseY - 90, text: 'Seekh aur do!' },
+    { x: W * 0.30, y: baseY - 65, text: 'Kahan ja raha hai?' },
+    { x: W * 0.77, y: baseY - 62, text: 'Aaj bhi garmi hai' },
+    { x: W * 0.53, y: baseY - 78, text: 'Biryani lao bhai!' },
+  ];
+  ctx.font = '10px monospace';
+  for (let ci = 0; ci < chatter.length; ci++) {
+    const phase = ((t / 1000) + ci * 1.4) % 6.5;
+    if (phase > 4.2) continue;
+    const alpha = phase < 0.35 ? phase / 0.35 : phase > 3.85 ? (4.2 - phase) / 0.35 : 1;
+    const cl = chatter[ci];
+    const tw = ctx.measureText(cl.text).width + 12;
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.fillStyle = '#fffbf0'; ctx.fillRect(cl.x - tw / 2, cl.y - 14, tw, 17);
+    ctx.strokeStyle = '#c9a86c'; ctx.lineWidth = 1; ctx.strokeRect(cl.x - tw / 2, cl.y - 14, tw, 17);
+    ctx.fillStyle = '#2c2c2c'; ctx.fillText(cl.text, cl.x - tw / 2 + 6, cl.y);
+    ctx.fillStyle = '#fffbf0';
+    ctx.beginPath(); ctx.moveTo(cl.x - 4, cl.y + 3); ctx.lineTo(cl.x + 4, cl.y + 3); ctx.lineTo(cl.x, cl.y + 10); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // title text
   ctx.textAlign = 'center';
   ctx.font = 'bold 44px monospace';
   ctx.fillStyle = '#1e272e'; ctx.fillText('BARA AYA', W / 2 + 3, 92);
@@ -2341,14 +2567,13 @@ function drawTitle() {
   ctx.font = 'bold 40px monospace';
   ctx.fillStyle = '#1e272e'; ctx.fillText('ALLAMA ROAD RUN', W / 2 + 3, 137);
   ctx.fillStyle = '#ffd32a'; ctx.fillText('ALLAMA ROAD RUN', W / 2, 134);
-  ctx.font = 'bold 16px monospace'; ctx.fillStyle = '#2c3e50';
+  ctx.font = 'bold 16px monospace'; ctx.fillStyle = titleNF > 0.5 ? '#d4c9e0' : '#2c3e50';
   ctx.fillText('Maskan Chowrangi  →  Gulshan Bridge', W / 2, 165);
-  // controls + prompt in a soft panel
   if (Math.floor(t / 500) % 2 === 0) {
     ctx.font = 'bold 26px monospace'; ctx.fillStyle = '#c0392b';
     ctx.fillText('PRESS ENTER TO START', W / 2, 215);
   }
-  ctx.font = 'bold 14px monospace'; ctx.fillStyle = '#2c3e50';
+  ctx.font = 'bold 14px monospace'; ctx.fillStyle = titleNF > 0.5 ? '#aaa8b8' : '#2c3e50';
   ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 250);
   ctx.textAlign = 'left';
 }
@@ -2581,7 +2806,7 @@ function bindTouchBtn(id, code) {
     if (code === 'ArrowLeft') recordCheat('L');
     if (code === 'ArrowRight') recordCheat('R');
     if (code === 'Space' && (state === 'title' || state === 'gameover' || state === 'win')) startGame();
-    if (code === 'Space' && state === 'credits') state = 'title';
+    if (code === 'Space' && state === 'credits') { state = 'title'; titleStart = performance.now(); }
   };
   const release = e => { e.preventDefault(); keys[code] = false; };
   el.addEventListener('pointerdown', press);
@@ -2597,7 +2822,7 @@ bindTouchBtn('btnJ', 'Space');
 cv.addEventListener('pointerdown', e => {
   initAudio();
   if (state === 'title' || state === 'gameover' || state === 'win') startGame();
-  else if (state === 'credits') state = 'title';
+  else if (state === 'credits') { state = 'title'; titleStart = performance.now(); }
 });
 
 // ---------- main loop (fixed timestep) ----------
