@@ -799,7 +799,7 @@ const isFlicker = () => state === 'play' && shedT >= 1320 && shedT < 1440 && (sh
 function nightFactor() {
   if (state === 'title' || !tStart) return 0;
   const el = ((tEnd || performance.now()) - tStart) / 1000;
-  return Math.min(1, Math.max(0, el / 100));
+  return Math.min(1, Math.max(0, el / 70));     // 5:30 PM -> 7:30 PM (full night) over 70s
 }
 function lerpColor(a, b, f) {
   const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
@@ -832,13 +832,13 @@ function drawSkyPlanes(nf) {
   const t = performance.now();
   if (state !== 'play' && state !== 'ride') return;
   const el = ((tEnd || performance.now()) - (tStart || performance.now())) / 1000;
-  // daytime flight ~5:30pm: one pass across ~18s, leaving a chemtrail that fades over 30s
-  if (el > 28 && el < 76) {
-    const planeF = (el - 28) / 18;                             // >1 after it has exited
+  // daytime flight ~5:30pm (near the start now): one pass across ~18s + chemtrail fading over 30s
+  if (el > 6 && el < 54) {
+    const planeF = (el - 6) / 18;                              // >1 after it has exited
     for (let i = 0; i <= 64; i++) {                            // chemtrail puffs along the flown path
       const ff = i / 64;
       if (ff > Math.min(1, planeF)) break;
-      const age = el - (28 + ff * 18), a = 1 - age / 30;
+      const age = el - (6 + ff * 18), a = 1 - age / 30;
       if (a <= 0) continue;
       const tx = ff * (W + 120) - 60, ty = 56 + Math.sin(ff * 3) * 6;
       ctx.globalAlpha = 0.55 * a; ctx.fillStyle = '#eef3f7';
@@ -2197,8 +2197,8 @@ function drawHUD() {
   const el = ((tEnd || performance.now()) - tStart) / 1000;
   ctx.font = 'bold 18px monospace'; ctx.fillStyle = '#fff';
   ctx.fillText(el.toFixed(1) + 's', W - 92, 18);
-  // clock: 4:30 PM at start -> 7:30 PM by 100s
-  const mins = 16 * 60 + 30 + nightFactor() * 180;             // minutes since midnight
+  // clock: 5:30 PM at start -> 7:30 PM by 70s
+  const mins = 17 * 60 + 30 + nightFactor() * 120;             // minutes since midnight
   let hh = Math.floor(mins / 60) % 24, mm = Math.floor(mins % 60);
   const ampm = hh >= 12 ? 'PM' : 'AM'; let h12 = hh % 12; if (h12 === 0) h12 = 12;
   ctx.fillStyle = '#ffd98a'; ctx.font = 'bold 15px monospace';
