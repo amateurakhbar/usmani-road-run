@@ -1475,10 +1475,13 @@ cv.addEventListener('pointerdown', e => {
 });
 
 // ---------- main loop (fixed timestep) ----------
-let last = 0, acc = 0;
+let last = 0, acc = 0, refitTick = 0;
 function loop(t) {
   if (!last) last = t;
   acc += Math.min(t - last, 100); last = t;
+  // self-healing viewport: re-check the real display size ~4x/sec so the canvas
+  // can never stay stuck at a wrong size after a flaky mobile resize event.
+  if (++refitTick % 15 === 0) fitCanvas();
   while (acc >= 16.666) { step(); acc -= 16.666; }
   draw();
   requestAnimationFrame(loop);
