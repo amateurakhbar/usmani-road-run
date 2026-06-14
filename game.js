@@ -403,6 +403,7 @@ function buildLevel() {
   // --- Zone A: Maskan Chowrangi (start) ---
   decors.push({ kind: 'chowrangi', x: 110 });
   decors.push({ kind: 'kugate', x: 330 });
+  decors.push({ kind: 'hussain', x: 540 });          // shopper just past Maskan Gate — "expensive hai"
   addBldg(560, 240, 230, 'BEACONHOUSE', '#dfe6e9', '#b2bec3', { signText: '#0a3d62' });
   coinRow(640, GROUND_Y - 130, 4);
 
@@ -2228,6 +2229,19 @@ function drawDecor(d, dark) {
     ctx.fillStyle = '#999'; ctx.beginPath(); ctx.ellipse(x + 13, GROUND_Y - 12, 7, 3, 0, 0, 7); ctx.fill(); // bowl
     if (!d.nearOnly || (typeof player !== 'undefined' && player && Math.abs(player.x - d.x) < 170))
       speechBubble(x, GROUND_Y - 82, d.phrase || 'kuch dedo?');
+  } else if (d.kind === 'hussain') {
+    const gy = GROUND_Y;
+    // Hussain — a shopper clutching a bag, sticker-shocked by the prices
+    drawPedestrian(x, gy, '#16a085', 0, true, 'man');             // teal kameez, standing
+    // shopping bag in his hand
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(x + 6, gy - 22, 9, 11);
+    ctx.strokeStyle = '#7b241c'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 7, gy - 22); ctx.lineTo(x + 9, gy - 26);
+    ctx.lineTo(x + 12, gy - 26); ctx.lineTo(x + 14, gy - 22); ctx.stroke();
+    // name tag under his feet
+    ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('HUSSAIN', x, gy + 11); ctx.textAlign = 'left';
+    speechBubble(x, gy - 80, 'expensive hai');
   } else if (d.kind === 'flowerseller') {
     drawPedestrian(x, GROUND_Y, '#8e44ad', performance.now() / 260, false);
     ctx.fillStyle = '#2ecc71'; ctx.fillRect(x + 6, GROUND_Y - 26, 2, 12);       // stems
