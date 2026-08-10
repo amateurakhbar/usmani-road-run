@@ -1,5 +1,5 @@
 /* ============================================================
-   USMANI ROAD RUN — Maskan Chowrangi to Gulshan Bridge
+   USMANI ROAD RUN: Maskan Chowrangi to Gulshan Bridge
    A Karachi side-scroller. Pixel art, real landmarks.
    ============================================================ */
 'use strict';
@@ -58,7 +58,7 @@ function exitFullscreen() {
   } catch (e) {}
 }
 function toggleFullscreen() { if (fsElement()) exitFullscreen(); else enterFullscreen(); }
-// auto-grab fullscreen the first time a touch player starts — once per page load only,
+// auto-grab fullscreen the first time a touch player starts, once per page load only,
 // so deliberately exiting fullscreen isn't undone on the next restart.
 let fsAutoTried = false;
 function tryAutoFullscreen() {
@@ -117,7 +117,7 @@ function loadSprite(key, src, opts) {
         if (d[i] >= th && d[i + 1] >= th && d[i + 2] >= th) d[i + 3] = 0;
       }
       // scrub leftover border artifacts: any row/column whose opaque pixels are
-      // almost all near-white is a background line, not art — erase it
+      // almost all near-white is a background line, not art; erase it
       const nearWhite = i => d[i] >= 226 && d[i + 1] >= 226 && d[i + 2] >= 226;
       for (let pxx = 0; pxx < oc.width; pxx++) {
         let op = 0, nw = 0;
@@ -195,7 +195,7 @@ addEventListener('keyup', e => keys[e.code] = false);
 addEventListener('pagehide', () => { if (state === 'play') trackGameEnd('abandoned'); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && state === 'play') trackGameEnd('abandoned'); });
 
-// block iOS double-tap / pinch zoom — it desyncs the fixed canvas from the screen
+// block iOS double-tap / pinch zoom; it desyncs the fixed canvas from the screen
 addEventListener('dblclick', e => e.preventDefault(), { passive: false });
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend'])
   addEventListener(ev, e => e.preventDefault(), { passive: false });
@@ -238,7 +238,7 @@ const sfx = {
   phat:  () => tone(60 + Math.random() * 50, 0.05, 'square', 0.085, 0, 40),
 };
 
-// user-supplied audio tracks (in assets/) — refs assigned immediately (no fragile gating)
+// user-supplied audio tracks (in assets/): refs assigned immediately (no fragile gating)
 const bgMusic = new Audio('assets/music.mp3'); bgMusic.loop = true; bgMusic.volume = 0.5; bgMusic.preload = 'auto';
 const endMusic = new Audio('assets/musicend.mp3'); endMusic.loop = true; endMusic.volume = 0.36; endMusic.preload = 'auto';
 const meowAud = new Audio('assets/meow.mp3'); meowAud.volume = 0.4; meowAud.preload = 'auto';
@@ -284,7 +284,7 @@ let musicGain = null, iceGain = null;
 let mStep = 0, mNext = 0, jStep = 0, jNext = 0;
 const MSTEP = 60 / 124 / 2;            // 124 bpm, 8th notes
 const JSTEP_T = 0.17;                  // Für Elise 16ths, poco moto
-// original melody — bright 90s-pop groove, G major I-vi-IV-V (Babia *vibe*, original notes)
+// original melody: bright 90s-pop groove, G major I-vi-IV-V (Babia *vibe*, original notes)
 const LEAD = [
   67, 0, 71, 74, 71, 0, 74, 79, 76, 0, 74, 71, 74, 0, 0, 0,
   72, 0, 76, 79, 74, 0, 71, 67, 69, 71, 69, 67, 67, 0, 0, 0,
@@ -293,7 +293,7 @@ const BASS = [
   55, 0, 55, 62, 0, 55, 0, 62, 52, 0, 52, 59, 0, 52, 0, 59,
   48, 0, 48, 55, 0, 48, 0, 55, 50, 0, 50, 57, 0, 50, 0, 57,
 ];
-// B section — second melody so the loop breathes
+// B section: second melody so the loop breathes
 const LEAD_B = [
   79, 0, 81, 83, 81, 0, 79, 76, 74, 0, 76, 79, 76, 0, 0, 0,
   72, 0, 74, 76, 79, 0, 76, 74, 71, 72, 74, 71, 67, 0, 0, 0,
@@ -306,7 +306,7 @@ const BASS_B = [
 const PAD = [57, 64, 69, 72, 71, 67, 64, 60, 57, 64, 69, 76, 74, 71, 67, 64];
 let cStep = 0, cNext = 0;
 const CSTEP_T = 0.42;
-// ice cream wala jingle — Für Elise (Beethoven, public domain — the real Karachi cart anthem)
+// ice cream wala jingle: Für Elise (Beethoven, public domain, the real Karachi cart anthem)
 const JINGLE = [
   76, 75, 76, 75, 76, 71, 74, 72,
   69, 0, 60, 64, 69, 71, 0, 64,
@@ -381,9 +381,9 @@ const banners = [];     // cloth banners across the road {x,text}
 
 const ZONES = [
   { x: 0,     name: 'Maskan Chowrangi' },
-  { x: 900,   name: 'Usmani Road — Block 7' },
-  { x: 4000,  name: 'Food Street — Block 4' },
-  { x: 6600,  name: 'Block 2 — Disco Bakery' },
+  { x: 900,   name: 'Usmani Road, Block 7' },
+  { x: 4000,  name: 'Food Street, Block 4' },
+  { x: 6600,  name: 'Block 2, Disco Bakery' },
   { x: 8700,  name: 'Road Under Construction' },
   { x: 11600, name: 'Gulshan Chowrangi Flyover' },
 ];
@@ -403,7 +403,7 @@ function buildLevel() {
   // --- Zone A: Maskan Chowrangi (start) ---
   decors.push({ kind: 'chowrangi', x: 110 });
   decors.push({ kind: 'kugate', x: 330 });
-  decors.push({ kind: 'hussain', x: 540 });          // shopper just past Maskan Gate — "expensive hai"
+  decors.push({ kind: 'hussain', x: 540 });          // shopper just past Maskan Gate: "expensive hai"
   addBldg(560, 240, 230, 'BEACONHOUSE', '#dfe6e9', '#b2bec3', { signText: '#0a3d62' });
   coinRow(640, GROUND_Y - 130, 4);
 
@@ -411,7 +411,7 @@ function buildLevel() {
   addBldg(960,  200, 260, 'SUNNY ARCADE', '#f5d76e', '#e0b13c', { awning: '#2ecc71' });
   addBldg(1160, 150, 200, 'MASTER ELECTRONICS', '#74b9ff', '#3a7bd5', { awning: '#e74c3c' });
   decors.push({ kind: 'jannat', x: 1330, w: 175, h: 250 });    // residential block w/ Jannat BBQ شاپ
-  // open dining space next to Jannat (no building here) — outdoor plastic tables
+  // open dining space next to Jannat (no building here): outdoor plastic tables
   decors.push({ kind: 'tables', x: 1490 });
   addBldg(1680, 200, 240, 'MASKAN VENUE', '#fde3a7', '#f5b041');
   decors.push({ kind: 'kepole', x: 1640, spark: false });
@@ -459,9 +459,9 @@ function buildLevel() {
   coinRow(5600, GROUND_Y - 140, 4);
   powerups.push({ x: 5050, y: GROUND_Y - 60, kind: 'bunkabab', taken: false });
 
-  // --- Zone D: Block 2 — Disco Bakery ---
+  // --- Zone D: Block 2, Disco Bakery ---
   addBldg(6700, 160, 200, 'JUNIORS CLINIC', '#dfe6e9', '#b2bec3', { signText: '#c0392b' });
-  // Disco Bakery — the icon
+  // Disco Bakery, the icon
   addBldg(6900, 280, 280, 'DISCO BAKERY', '#1c1c22', '#101015', { sign: '#ffd32a', signText: '#1c1c22', awning: '#ffd32a' });
   decors.push({ kind: 'billboard', x: 6900, lines: ['IGLOO', 'ICE CREAM', 'thanda matlab...'], bg: '#e60026', fg: '#ffffff' });
   addBldg(7155, 85, 110, 'DOODH DAHI', '#f8f8f8', '#e8e8e8', { signText: '#1a5276', awning: '#85c1e9' });
@@ -479,7 +479,7 @@ function buildLevel() {
   coinArc(8220, GROUND_Y - 60, 6);
   addBldg(8430, 180, 220, 'MILAN SWEETS', '#f1c40f', '#d4ac0d', { awning: '#c0392b' });
   coinRow(6940, GROUND_Y - 150, 6);
-  banners.push({ x: 7000, text: 'DISCO BAKERY — SINCE 1972' });
+  banners.push({ x: 7000, text: 'DISCO BAKERY, SINCE 1972' });
 
   // --- Zone E: Construction (the gauntlet) ---
   decors.push({ kind: 'kmcsign', x: 8740 });
@@ -570,10 +570,10 @@ let titleStart = performance.now();  // drives day/night cycle on title screen
 let paused = false;
 let player, cam, vehicles, spawnT, rupees, hearts, tStart, tEnd, iframes, boostT, starT, shedT, shedDone, toast, deathX;
 let lastGroundX = 60;   // last x where player stood on solid ground (for easy-mode pit respawn)
-let toastPending = null; // { text, t } — shown after current toast expires
+let toastPending = null; // { text, t }, shown after current toast expires
 let iceCount = 0, lastIceX = -99999;
 let godMode = false, cheatSeq = [];   // L L L R R R = unlimited health, this run only
-let easyMode = false;                 // toggled on title screen — sets godMode on game start
+let easyMode = false;                 // toggled on title screen; sets godMode on game start
 
 // left-handed control layout: jump on the LEFT, walk pair on the RIGHT (mobile touch buttons)
 let lefty = false;
@@ -762,7 +762,7 @@ function step() {
   }
   if (player.y > H + 60) { respawn(); return; }
 
-  // vehicles — stop spawning oncoming traffic once near the police at the top of the bridge
+  // vehicles: stop spawning oncoming traffic once near the police at the top of the bridge
   const NO_TRAFFIC_X = 12150;
   spawnT--;
   if (spawnT <= 0 && player.x < NO_TRAFFIC_X) { spawnVehicle(); spawnT = ZONE_RATE[zoneAt(player.x)] * (0.7 + Math.random() * 0.6); }
@@ -849,7 +849,7 @@ function step() {
     iceGain.gain.setTargetAtTime(target, AC.currentTime, 0.15);
   }
 
-  // load shedding — happens once per run
+  // load shedding: happens once per run
   if (!shedDone) {
     shedT++;
     if (shedT === 1320) toast = { text: 'LOAD SHEDDING AANE WALI HAI...', t: 110 };
@@ -1197,7 +1197,7 @@ function drawUnderpass(dark) {
   ctx.strokeStyle = 'rgba(230,225,180,0.55)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(nearL, H); ctx.lineTo(vpx - 13, vpy); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(nearR, H); ctx.lineTo(vpx + 13, vpy); ctx.stroke();
-  // detailed cars in their own lanes — left lane comes toward us, right lane recedes
+  // detailed cars in their own lanes: left lane comes toward us, right lane recedes
   const t = performance.now() / 1000;
   const halfNear = (nearR - nearL) / 2;
   const cars = [
@@ -1223,7 +1223,7 @@ function drawUnderpass(dark) {
       ctx.fillStyle = '#ff3b30'; ctx.fillRect(bx + 1, by + 1, 3, 2.5); ctx.fillRect(bx + cw - 4, by + 1, 3, 2.5);
     }
   }
-  // RASHID MINHAS ROAD sign — big, low and near the camera so it's clearly readable
+  // RASHID MINHAS ROAD sign: big, low and near the camera so it's clearly readable
   const gx = cxw, gtop = horizon - 30;                     // low in the open, below the deck
   ctx.fillStyle = dark ? '#26303a' : '#5a6470';
   ctx.fillRect(gx - 84, gtop + 22, 6, horizon - gtop - 16); ctx.fillRect(gx + 78, gtop + 22, 6, horizon - gtop - 16);
@@ -1511,7 +1511,7 @@ function drawVehicle(v) {
     ctx.translate(pivX, pivY); ctx.rotate(slopeAng); ctx.translate(-pivX, -pivY);
   }
   if (v.kind === 'rickshaw' && sprites.rickshaw) {
-    // real photo sprite — scale by opaque content, land its wheels on the road
+    // real photo sprite: scale by opaque content, land its wheels on the road
     const spr = sprites.rickshaw, c = spr.content || { x: 0, y: 0, w: spr.width, h: spr.height };
     const s = Math.min((v.w + 16) / c.w, (v.h + 8) / c.h);
     const dw = spr.width * s, dh = spr.height * s;
@@ -1695,7 +1695,7 @@ function drawVehicle(v) {
     ctx.fillStyle = '#935116'; ctx.fillRect(x + 56, y - 4, v.w - 64, 12);      // dirt heaped
     ctx.fillStyle = '#222'; circle(x + 22, y + v.h - 9, 12); circle(x + v.w - 60, y + v.h - 9, 12); circle(x + v.w - 24, y + v.h - 9, 12);
   }
-  // small headlight on every nose — half of them broken, very Karachi
+  // small headlight on every nose; half of them broken, very Karachi
   if (v.kind !== 'icecream') {
     const on = v.lightOn !== false;
     const hy = y + v.h - 20;
@@ -1722,7 +1722,7 @@ function drawPlayer() {
   const airborne = !player.onGround;
   const flashHide = iframes > 0 && Math.floor(iframes / 5) % 2 === 0;
 
-  // ground shadow (skip while airborne) — drawn in world space, behind player
+  // ground shadow (skip while airborne): drawn in world space, behind player
   if (!airborne) {
     ctx.save(); ctx.globalAlpha = 0.16; ctx.fillStyle = '#000';
     ctx.beginPath(); ctx.ellipse(x + player.w / 2, y + player.h + 1, 12, 3, 0, 0, 7); ctx.fill();
@@ -1844,7 +1844,7 @@ function drawDecor(d, dark) {
     ctx.fillRect(x + 22, lgy - 128, 10, 8);
     if (lit) {
       const nfL = nightFactor();
-      // soft radial halo — fades outward so no hard white circle edge
+      // soft radial halo, fades outward so no hard white circle edge
       ctx.globalAlpha = 0.55 + 0.25 * nfL;
       const hg = ctx.createRadialGradient(x + 27, lgy - 123, 0, x + 27, lgy - 123, 46);
       hg.addColorStop(0, col); hg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -1880,7 +1880,7 @@ function drawDecor(d, dark) {
     ctx.fillStyle = '#bcaaa4';
     ctx.fillRect(x + 8, GROUND_Y - 14, 18, 14); ctx.fillRect(x + 36, GROUND_Y - 14, 18, 14);
   } else if (d.kind === 'signal') {
-    // traffic signal at Disco Bakery — blinks yellow during load shedding
+    // traffic signal at Disco Bakery, blinks yellow during load shedding
     ctx.fillStyle = '#3d4852'; ctx.fillRect(x, GROUND_Y - 150, 8, 150);
     ctx.fillStyle = '#222831'; ctx.fillRect(x - 9, GROUND_Y - 196, 26, 62);
     const ph = (performance.now() / 1000) % 10;
@@ -1912,7 +1912,7 @@ function drawDecor(d, dark) {
     ctx.fillStyle = '#f1c40f'; ctx.fillRect(x - 30, GROUND_Y - 130, 130, 48);
     ctx.fillStyle = '#1e272e'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
     ctx.fillText('KAAM JARI HAI', x + 35, GROUND_Y - 110);
-    ctx.fillText('— KMC —', x + 35, GROUND_Y - 94);
+    ctx.fillText('- KMC -', x + 35, GROUND_Y - 94);
     ctx.textAlign = 'left';
   } else if (d.kind === 'rastaband') {
     ctx.fillStyle = '#e74c3c'; ctx.fillRect(x, GROUND_Y - 110, 110, 36);
@@ -2231,7 +2231,7 @@ function drawDecor(d, dark) {
       speechBubble(x, GROUND_Y - 82, d.phrase || 'kuch dedo?');
   } else if (d.kind === 'hussain') {
     const gy = GROUND_Y;
-    // Hussain — a shopper clutching a bag, sticker-shocked by the prices
+    // Hussain, a shopper clutching a bag, sticker-shocked by the prices
     drawPedestrian(x, gy, '#16a085', 0, true, 'man');             // teal kameez, standing
     // shopping bag in his hand
     ctx.fillStyle = '#c0392b'; ctx.fillRect(x + 6, gy - 22, 9, 11);
@@ -2362,9 +2362,9 @@ function drawHUD() {
     ctx.fillRect(W / 2 - 255, 118, 510, 42);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffd32a'; ctx.font = 'bold 13px monospace';
-    ctx.fillText('GOAL: dodge cars, potholes & wires — jump with ↑ / SPACE', W / 2, 135);
+    ctx.fillText('GOAL: dodge cars, potholes & wires. Jump with ↑ / SPACE', W / 2, 135);
     ctx.fillStyle = '#cfd8e8';
-    ctx.fillText('Reach Gulshan Bridge — your Bykea is waiting', W / 2, 152);
+    ctx.fillText('Reach Gulshan Bridge, your Bykea is waiting', W / 2, 152);
     ctx.textAlign = 'left';
   }
   // power timers
@@ -2451,7 +2451,7 @@ function drawJannatFacade(x, baseY, w, h, dark) {
     ctx.fillStyle = mCols[m % 5]; ctx.fillRect(mx - 5, sy + 11, 10, 14);
     ctx.fillStyle = 'rgba(220,100,60,0.22)'; ctx.fillRect(mx - 3, sy + 11, 4, 14);
   }
-  // cash person behind counter — drawn BEFORE counter so counter occludes lower body
+  // cash person behind counter: drawn BEFORE counter so counter occludes lower body
   const crx = ix + iw - 42;
   const cpx = crx + 16;
   ctx.fillStyle = '#c8a06f'; ctx.fillRect(cpx - 4, sy + 3, 8, 10);
@@ -2459,7 +2459,7 @@ function drawJannatFacade(x, baseY, w, h, dark) {
   ctx.fillStyle = '#15151a'; ctx.fillRect(cpx - 2, sy + 6, 1, 2); ctx.fillRect(cpx + 2, sy + 6, 1, 2);
   ctx.fillStyle = '#7a3b2a'; ctx.fillRect(cpx - 1, sy + 10, 3, 1);
   ctx.fillStyle = '#1e3a6e'; ctx.fillRect(cpx - 5, sy + 13, 10, 50);  // dark blue body extends below counter
-  // white tiled counter — drawn AFTER person, covers their lower body
+  // white tiled counter: drawn AFTER person, covers their lower body
   ctx.fillStyle = '#e2e2e2'; ctx.fillRect(ix, sy + 38, iw, 22);
   ctx.fillStyle = '#f3f3f3'; ctx.fillRect(ix, sy + 41, iw, 6);
   ctx.strokeStyle = '#cacaca'; ctx.lineWidth = 0.5;
@@ -2580,7 +2580,7 @@ function drawPersonOnChair(cx, gy, shirt, t, type) {
   }
 }
 function drawTableGroup(cx, gy, leftShirt, leftType, rightShirt, rightType, t) {
-  // 1. Chair backs (behind heads — draw first)
+  // 1. Chair backs (behind heads, draw first)
   ctx.fillStyle = '#a8814f';
   ctx.fillRect(cx - 17, gy - 50, 8, 3); ctx.fillRect(cx - 16, gy - 47, 2, 25); ctx.fillRect(cx - 13, gy - 47, 2, 25);
   ctx.fillRect(cx + 9, gy - 50, 8, 3);  ctx.fillRect(cx + 11, gy - 47, 2, 25); ctx.fillRect(cx + 14, gy - 47, 2, 25);
@@ -2590,7 +2590,7 @@ function drawTableGroup(cx, gy, leftShirt, leftType, rightShirt, rightType, t) {
   // 3. People on chairs (drawn before table surface so table hides their lower half)
   drawPersonOnChair(cx - 14, gy, leftShirt, t, leftType);
   drawPersonOnChair(cx + 14, gy, rightShirt, t + 300, rightType);
-  // 4. Table surface + apron (drawn LAST — creates seated-behind-table illusion)
+  // 4. Table surface + apron (drawn LAST, creates seated-behind-table illusion)
   ctx.fillStyle = '#c9a86c'; ctx.fillRect(cx - 19, gy - 28, 38, 4);
   ctx.fillStyle = '#b87d3c'; ctx.fillRect(cx - 19, gy - 28, 38, 2);
   ctx.fillStyle = '#a8814f'; ctx.fillRect(cx - 17, gy - 24, 34, 8);    // front apron hides lower body
@@ -2649,7 +2649,7 @@ function drawOwner(cx, gy, t) {
     ctx.fillRect(Math.round(fx) - 3, gy - 2, 7, 2);
   }
 
-  // left and right legs use opposite phases — when one swings the other is planted
+  // left and right legs use opposite phases: when one swings the other is planted
   drawLeg(cx - 3, Math.sin(phase));
   drawLeg(cx + 3, Math.sin(phase + Math.PI));
 
@@ -2694,7 +2694,7 @@ function drawOwner(cx, gy, t) {
   ctx.fillStyle = 'rgba(200,80,50,0.6)'; circle(cx + panSide * 3, gy - 52, 2.5);
 }
 function drawStandingFan(cx, gy, t) {
-  // compact fan — head at face level (~gy-44)
+  // compact fan: head at face level (~gy-44)
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(cx - 9, gy - 3, 18, 4);           // base plate
   ctx.fillRect(cx - 2, gy - 42, 4, 40);           // short pole
@@ -3046,7 +3046,7 @@ function drawTitle() {
     drawOwner(ownerX, baseY, t);
   }
 
-  // ── SMALL CROWD — all LEFT of grill (idle, no leg twitch) ──
+  // ── SMALL CROWD: all LEFT of grill (idle, no leg twitch) ──
   const crowd = [['man','#34495e'],['floral','#e84393'],['man','#16607a']];
   for (let i = 0; i < crowd.length; i++) {
     const ccx = jx - 130 + i * 24 + Math.sin(t / 800 + i) * 1.5;
@@ -3118,7 +3118,7 @@ function drawTitle() {
   }
   ctx.font = 'bold 14px monospace'; ctx.fillStyle = titleNF > 0.5 ? '#aaa8b8' : '#2c3e50';
   ctx.fillText('← →  move      SPACE / ↑  jump      P  pause      M  music', W / 2, 250);
-  // easy mode + music toggles — top right
+  // easy mode + music toggles, top right
   ctx.textAlign = 'right'; ctx.font = 'bold 13px monospace';
   ctx.fillStyle = easyMode ? '#2ecc71' : (titleNF > 0.5 ? '#888' : '#7f8c8d');
   ctx.fillText(easyMode ? '[✓] EASY MODE  ON  (E)' : '[ ] EASY MODE  OFF  (E)', W - 12, 22);
@@ -3149,7 +3149,7 @@ function drawWaitingBike(sx, gy, withPassenger, smoking, bob, riderLift) {
   }
   // riders SITTING on the bike (butt on the seat, thighs forward, shins down)
   const seat = yy - 24 - lift;
-  if (withPassenger) {                                          // pillion (our hero), behind — drawn first
+  if (withPassenger) {                                          // pillion (our hero), behind; drawn first
     ctx.fillStyle = '#22336a'; ctx.fillRect(sx + 6, seat, 11, 4);              // thigh
     ctx.fillStyle = '#2c3a92'; ctx.fillRect(sx + 14, seat + 2, 4, 12);         // shin
     ctx.fillStyle = '#8e2433'; ctx.fillRect(sx + 1, seat - 13, 5, 14);         // backpack
@@ -3160,7 +3160,7 @@ function drawWaitingBike(sx, gy, withPassenger, smoking, bob, riderLift) {
     ctx.strokeStyle = '#7a4a2b'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(sx + 10, seat - 17, 2.2, 0.25, Math.PI - 0.25); ctx.stroke(); // smile
   }
-  // driver — green Bykea kit, black helmet, front
+  // driver: green Bykea kit, black helmet, front
   ctx.fillStyle = '#0a7e3a'; ctx.fillRect(sx + 26, seat, 12, 4);               // thigh
   ctx.fillStyle = '#2b2b2b'; ctx.fillRect(sx + 35, seat + 2, 4, 12);           // shin to peg
   ctx.fillStyle = '#0aa54f'; ctx.fillRect(sx + 24, seat - 15, 11, 16);         // torso
@@ -3219,7 +3219,7 @@ function drawCredits() {
     const cyc = (t / 1000 + k * 10 + 5) % 18;
     if (cyc < 12) { const f = cyc / 12; drawPlane(f * (W + 140) - 70, 38 + k * 30 + Math.sin(f * 4 + k) * 5, 1.15, t + k * 250); }
   }
-  // soft night clouds drifting behind the buildings — credits rise out from here
+  // soft night clouds drifting behind the buildings; credits rise out from here
   for (let i = 0; i < 5; i++) {
     let cx = ((i * 230 + 60) - scroll * 0.10) % (W + 360); if (cx < -200) cx += W + 360;
     const cy = 80 + (i * 53) % 130;
@@ -3310,7 +3310,7 @@ function drawCredits() {
     ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
     ctx.fillText('SHAHRAH-E-FAISAL', gb + 120, RD - 44); ctx.textAlign = 'left';
   }
-  // our bike — fixed position, gentle bob
+  // our bike: fixed position, gentle bob
   const bob = Math.sin(creditsT / 11) * 1.2;
   drawWaitingBike(W * 0.32, H - 14, true, Math.floor(creditsT / 7) % 3 === 0, bob);
   if (Math.floor(t / 600) % 2 === 0) {
@@ -3333,7 +3333,7 @@ function drawGameOver() {
   // easy mode toggle
   ctx.font = 'bold 13px monospace';
   ctx.fillStyle = easyMode ? '#2ecc71' : '#7f8c8d';
-  ctx.fillText((easyMode ? '[✓] EASY MODE  ON' : '[ ] EASY MODE  OFF') + '  — can\'t die  (press E)', W / 2, 383);
+  ctx.fillText((easyMode ? '[✓] EASY MODE  ON' : '[ ] EASY MODE  OFF') + ':  can\'t die  (press E)', W / 2, 383);
   // music toggle
   ctx.fillStyle = musicOn ? '#3498db' : '#7f8c8d';
   ctx.fillText((musicOn ? '[♪] MUSIC  ON' : '[✕] MUSIC  OFF') + '  (press M)', W / 2, 403);
@@ -3351,7 +3351,7 @@ function drawWin() {
   ctx.font = '22px monospace'; ctx.fillStyle = '#ecf0f1';
   ctx.fillText('Time: ' + el + 's     Rupees: ' + rupees, W / 2, 255);
   ctx.font = '17px monospace'; ctx.fillStyle = '#bdc3c7';
-  ctx.fillText('Maskan se Gulshan — traffic, khuddai aur load shedding ke bawajood.', W / 2, 300);
+  ctx.fillText('Maskan se Gulshan: traffic, khuddai aur load shedding ke bawajood.', W / 2, 300);
   ctx.font = 'bold 22px monospace'; ctx.fillStyle = '#ffd32a';
   ctx.fillText('PRESS ENTER TO RUN AGAIN', W / 2, 370);
   ctx.textAlign = 'left';

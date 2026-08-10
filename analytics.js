@@ -1,5 +1,5 @@
 /* ============================================================
-   USMANI ROAD RUN — lightweight analytics (Google Analytics 4)
+   USMANI ROAD RUN: lightweight analytics (Google Analytics 4)
    ------------------------------------------------------------
    TO TURN IT ON: paste your GA4 Measurement ID below. It looks
    like  G-XXXXXXXXXX  and is free:
